@@ -4,15 +4,19 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"node -r ts-node/register/transpile-only server/index.ts\"",
     "build": "vite build",
+    "start": "node server/index.ts",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^1.41.0",
     "@tailwindcss/vite": "^4.2.0",
+    "@types/express": "^5.0.6",
     "@vercel/postgres": "^0.10.0",
+    "concurrently": "^9.2.1",
+    "express": "^5.2.1",
     "lucide-react": "^0.575.0",
     "motion": "^12.34.3",
     "next": "^16.1.6",

@@ -63,6 +63,15 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!isDataLoaded) return;
 
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      const saveDataSync = () => {
+        navigator.sendBeacon('/api/data', JSON.stringify({ employees, departments, evaluations: history }));
+      };
+      saveDataSync();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     const handler = setTimeout(() => {
       const saveData = async () => {
         try {
@@ -76,10 +85,11 @@ const App: React.FC = () => {
         }
       };
       saveData();
-    }, 1000); // Debounce saves by 1 second
+    }, 2000); // Debounce saves by 2 seconds
 
     return () => {
       clearTimeout(handler);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [employees, departments, history, isDataLoaded]);
 
