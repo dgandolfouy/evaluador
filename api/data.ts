@@ -65,6 +65,7 @@ const handleGet = async (req: VercelRequest, res: VercelResponse) => {
     const employees = await dbPool.query('SELECT * FROM employees;');
     const departments = await dbPool.query('SELECT * FROM departments;');
     const evaluations = await dbPool.query('SELECT * FROM evaluations;');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json({ employees: employees.rows, departments: departments.rows, evaluations: evaluations.rows });
 };
 
@@ -96,6 +97,7 @@ const handlePost = async (req: VercelRequest, res: VercelResponse) => {
             );
         }
         await client.query('COMMIT');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.json({ success: true });
     } catch (error) {
         await client.query('ROLLBACK');
@@ -120,6 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error("[VERCEL_FUNCTION_ERROR]", error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred';
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.status(500).json({ error: errorMessage });
   }
 }

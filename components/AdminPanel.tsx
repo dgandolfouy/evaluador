@@ -4,19 +4,19 @@ import { Plus, Trash2, UserPlus, Settings, Save, X, Building2, Users, Edit2, Rot
 
 interface AdminPanelProps {
   employees: Employee[];
-  setEmployees: React.Dispatch<React.SetStateAction<Employee[]>>;
   departments: Department[];
-  setDepartments: React.Dispatch<React.SetStateAction<Department[]>>;
   onClose: () => void;
+  onSave: (employees: Employee[], departments: Department[]) => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
-  employees, 
-  setEmployees, 
-  departments, 
-  setDepartments, 
-  onClose 
+  employees: initialEmployees, 
+  departments: initialDepartments, 
+  onClose, 
+  onSave 
 }) => {
+  const [employees, setEmployees] = useState(initialEmployees);
+  const [departments, setDepartments] = useState(initialDepartments);
   const [activeTab, setActiveTab] = useState<'employees' | 'departments'>('employees');
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [editingDept, setEditingDept] = useState<string | null>(null);
@@ -30,6 +30,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   });
   const [newDept, setNewDept] = useState('');
   const formRef = useRef<HTMLDivElement>(null);
+
+  const handleSaveAndClose = () => {
+    onSave(employees, departments);
+    onClose();
+  };
 
   const handleSaveEmployee = () => {
     if (!newEmployee.name || !newEmployee.jobTitle) return;
@@ -511,7 +516,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         <div className="p-4 sm:p-6 bg-slate-900 border-t border-slate-800 flex justify-end">
           <button 
-            onClick={onClose}
+            onClick={handleSaveAndClose}
             className="bg-orange-600 text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] sm:text-xs hover:bg-orange-500 transition-all shadow-xl shadow-orange-900/20 flex items-center gap-2"
           >
             <Save size={16} /> Guardar y Cerrar

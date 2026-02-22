@@ -29,71 +29,59 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Load data on mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('/api/data');
-        const data = await response.json();
+  const fetchData = async () => {
+    try {
+      const response = await fetch('/api/data');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
 
-        if (!data.employees || data.employees.rows.length === 0) {
-          console.log("Initializing with default data.");
-          setEmployees(INITIAL_EMPLOYEES);
-          setDepartments(DEPARTMENTS);
-          setHistory([]);
-        } else {
-          setEmployees(data.employees.rows.map((e: any) => ({...e, additionalRoles: e.additionalroles ? JSON.parse(e.additionalroles) : [] })) || []);
-          setDepartments(data.departments.rows.map((d: any) => d.name) || []);
-          setHistory(data.evaluations.rows.map((e: any) => ({...e, criteria: e.responses ? JSON.parse(e.responses) : [], analysis: e.analysis ? JSON.parse(e.analysis) : null })) || []);
-        }
-      } catch (error) {
-        console.error('Error fetching data, using initial constants:', error);
+      if (!data.employees || data.employees.length === 0) {
+        console.log("Initializing with default data.");
         setEmployees(INITIAL_EMPLOYEES);
         setDepartments(DEPARTMENTS);
         setHistory([]);
-      } finally {
-        setIsDataLoaded(true);
+      } else {
+        setEmployees(data.employees.map((e: any) => ({...e, additionalRoles: e.additionalroles ? (typeof e.additionalroles === 'string' ? JSON.parse(e.additionalroles) : e.additionalroles) : [] })) || []);
+        setDepartments(data.departments.map((d: any) => d.name) || []);
+        setHistory(data.evaluations.map((e: any) => ({...e, criteria: e.responses ? (typeof e.responses === 'string' ? JSON.parse(e.responses) : e.responses) : [], analysis: e.analysis ? (typeof e.analysis === 'string' ? JSON.parse(e.analysis) : e.analysis) : null })) || []);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching data, using initial constants:', error);
+      setEmployees(INITIAL_EMPLOYEES);
+      setDepartments(DEPARTMENTS);
+      setHistory([]);
+    } finally {
+      setIsDataLoaded(true);
+    }
+  };
+
+  const saveData = async (dataToSave: { employees: Employee[], departments: Department[], evaluations: SavedEvaluation[] }) => {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSave),
+      });
+      if (!response.ok) {
+        throw new Error('Server responded with an error');
+      }
+      await fetchData(); // Refetch data to ensure UI is in sync with the server
+    } catch (error) {
+      console.error('Error saving data:', error);
+      setError('No se pudieron guardar los cambios en el servidor.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
-
-  // Save data to API when changes are made, but only after initial load
-  useEffect(() => {
-    if (!isDataLoaded) return;
-
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      const saveDataSync = () => {
-        const data = JSON.stringify({ employees, departments, evaluations: history });
-        const blob = new Blob([data], { type: 'application/json' });
-        navigator.sendBeacon('/api/data', blob);
-      };
-      saveDataSync();
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    const handler = setTimeout(() => {
-      const saveData = async () => {
-        try {
-          await fetch('/api/data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employees, departments, evaluations: history }),
-          });
-        } catch (error) {
-          console.error('Error saving data:', error);
-        }
-      };
-      saveData();
-    }, 2000); // Debounce saves by 2 seconds
-
-    return () => {
-      clearTimeout(handler);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [employees, departments, history, isDataLoaded]);
 
   const selectedEmployee = useMemo(() => 
     employees.find(e => e.id === state.selectedEmployeeId) || null
@@ -147,20 +135,20 @@ const App: React.FC = () => {
       };
 
       const newHistory = [completedEvaluation, ...history];
-      setHistory(newHistory);
-
-      // Update employee average score
+      
       const empHistory = newHistory.filter(h => h.employeeId === selectedEmployee.id);
       const totalScore = empHistory.reduce((acc, h) => {
         const avg = h.criteria.reduce((sum, c) => sum + c.score, 0) / h.criteria.length;
         return acc + avg;
       }, 0);
       
-      setEmployees(prev => prev.map(e => 
+      const newEmployees = employees.map(e => 
         e.id === selectedEmployee.id 
           ? { ...e, averageScore: totalScore / empHistory.length } 
           : e
-      ));
+      );
+
+      await saveData({ employees: newEmployees, departments, evaluations: newHistory });
 
       setState(prev => ({ ...prev, analysis, step: 'report', viewingEvaluatorId: currentUser?.id }));
     } catch (e) {
@@ -170,12 +158,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteEvaluation = (id: string) => {
+  const handleDeleteEvaluation = async (id: string) => {
     const newHistory = history.filter(h => h.id !== id);
-    setHistory(newHistory);
-
-    // Recalculate averages
-    setEmployees(prev => prev.map(emp => {
+    
+    const newEmployees = employees.map(emp => {
       const empHistory = newHistory.filter((h: SavedEvaluation) => h.employeeId === emp.id);
       if (empHistory.length === 0) return { ...emp, averageScore: undefined };
       
@@ -185,7 +171,13 @@ const App: React.FC = () => {
       }, 0);
       
       return { ...emp, averageScore: totalScore / empHistory.length };
-    }));
+    });
+
+    await saveData({ employees: newEmployees, departments, evaluations: newHistory });
+  };
+
+  const handleAdminSave = async (updatedEmployees: Employee[], updatedDepartments: Department[]) => {
+    await saveData({ employees: updatedEmployees, departments: updatedDepartments, evaluations: history });
   };
 
   const returnToDashboard = () => {
@@ -360,7 +352,7 @@ const App: React.FC = () => {
               <div className="p-8 bg-slate-950 border-t border-slate-800 flex justify-end">
                 <button 
                   onClick={finishEvaluation}
-                  disabled={isLoading}
+                  disabled={isLoading || isSaving}
                   className="bg-orange-600 hover:bg-orange-500 text-white font-bold py-4 px-10 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                 >
                   {isLoading ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={20} />}
@@ -400,18 +392,17 @@ const App: React.FC = () => {
       {isAdminOpen && (
         <AdminPanel 
           employees={employees} 
-          setEmployees={setEmployees} 
           departments={departments}
-          setDepartments={setDepartments}
           onClose={() => setIsAdminOpen(false)} 
+          onSave={handleAdminSave}
         />
       )}
 
-      {isLoading && state.step !== 'evaluating' && (
+      {(isLoading || isSaving) && state.step !== 'evaluating' && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4 border border-slate-800">
             <Loader2 className="animate-spin text-orange-500" size={40} />
-            <p className="font-bold text-white">Procesando con IA...</p>
+            <p className="font-bold text-white">{isSaving ? 'Guardando cambios...' : 'Procesando con IA...'}</p>
           </div>
         </div>
       )}
