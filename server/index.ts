@@ -1,6 +1,9 @@
 import express from 'express';
 import { sql } from '@vercel/postgres';
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -67,7 +70,7 @@ app.post('/api/data', async (req, res) => {
     for (const ev of evaluations) {
       const finalScore = ev.analysis?.finalScore ?? 0;
       const comments = ev.analysis?.comments ?? '';
-      await sql`INSERT INTO evaluations (id, employeeId, evaluatorId, date, responses, finalScore, comments, analysis) VALUES (${ev.id}, ${ev.id}, ${ev.evaluatorId}, ${ev.date}, ${ev.criteria ? JSON.stringify(ev.criteria) : null}, ${finalScore}, ${comments}, ${ev.analysis ? JSON.stringify(ev.analysis) : null});`;
+      await sql`INSERT INTO evaluations (id, employeeId, evaluatorId, date, responses, finalScore, comments, analysis) VALUES (${ev.id}, ${ev.employeeId}, ${ev.evaluatorId}, ${ev.date}, ${ev.criteria ? JSON.stringify(ev.criteria) : null}, ${finalScore}, ${comments}, ${ev.analysis ? JSON.stringify(ev.analysis) : null});`;
     }
 
     res.json({ success: true });
