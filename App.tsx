@@ -13,8 +13,9 @@ import { Loader2, CheckCircle2, ArrowLeft, Settings, Users, LayoutDashboard, Bar
 
 const App: React.FC = () => {
   const [history, setHistory] = useState<SavedEvaluation[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
-  const [departments, setDepartments] = useState<Department[]>(DEPARTMENTS);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
@@ -35,43 +36,52 @@ const App: React.FC = () => {
       try {
         const response = await fetch('/api/data');
         const data = await response.json();
-        if (data.employees) setEmployees(data.employees.rows.map((e: any) => ({...e, additionalRoles: e.additionalroles ? JSON.parse(e.additionalroles) : [] })));
-        if (data.departments) setDepartments(data.departments.rows.map((d: any) => d.name));
-        if (data.evaluations) setHistory(data.evaluations.rows.map((e: any) => ({...e, responses: e.responses ? JSON.parse(e.responses) : [] })));
+
+        if (!data.employees || data.employees.rows.length === 0) {
+          console.log("Initializing with default data.");
+          setEmployees(INITIAL_EMPLOYEES);
+          setDepartments(DEPARTMENTS);
+          setHistory([]);
+        } else {
+          setEmployees(data.employees.rows.map((e: any) => ({...e, additionalRoles: e.additionalroles ? JSON.parse(e.additionalroles) : [] })) || []);
+          setDepartments(data.departments.rows.map((d: any) => d.name) || []);
+          setHistory(data.evaluations.rows.map((e: any) => ({...e, criteria: e.responses ? JSON.parse(e.responses) : [], analysis: e.analysis ? JSON.parse(e.analysis) : null })) || []);
+        }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching data, using initial constants:', error);
+        setEmployees(INITIAL_EMPLOYEES);
+        setDepartments(DEPARTMENTS);
+        setHistory([]);
+      } finally {
+        setIsDataLoaded(true);
       }
     };
     fetchData();
   }, []);
 
-  // Save data to API
-  const saveData = async () => {
-    try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employees, departments, evaluations: history }),
-      });
-    } catch (error) {
-      console.error('Error saving data:', error);
-    }
-  };
-
-  // Save employees when they change
+  // Save data to API when changes are made, but only after initial load
   useEffect(() => {
-    if (employees.length > 0) saveData();
-  }, [employees]);
+    if (!isDataLoaded) return;
 
-  // Save departments when they change
-  useEffect(() => {
-    if (departments.length > 0) saveData();
-  }, [departments]);
+    const handler = setTimeout(() => {
+      const saveData = async () => {
+        try {
+          await fetch('/api/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employees, departments, evaluations: history }),
+          });
+        } catch (error) {
+          console.error('Error saving data:', error);
+        }
+      };
+      saveData();
+    }, 1000); // Debounce saves by 1 second
 
-  // Save history when it changes
-  useEffect(() => {
-    if (history.length > 0) saveData();
-  }, [history]);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [employees, departments, history, isDataLoaded]);
 
   const selectedEmployee = useMemo(() => 
     employees.find(e => e.id === state.selectedEmployeeId) || null
