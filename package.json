@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node -r ts-node/register/transpile-only scripts/create-tables.ts",
     "preview": "vite preview",
-    "postinstall": "node -r ts-node/register/transpile-only scripts/create-tables.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
