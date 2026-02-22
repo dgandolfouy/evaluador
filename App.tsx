@@ -31,26 +31,38 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // FUNCIÓN PARA CARGAR DATOS
   const fetchData = async () => {
     try {
       const response = await fetch('/api/data');
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Error HTTP: ${response.status}`);
       }
       const data = await response.json();
 
       if (!data.employees || data.employees.length === 0) {
-        console.log("Initializing with default data.");
         setEmployees(INITIAL_EMPLOYEES);
         setDepartments(DEPARTMENTS);
         setHistory([]);
       } else {
-        setEmployees(data.employees.map((e: any) => ({...e, additionalRoles: e.additionalroles ? (typeof e.additionalroles === 'string' ? JSON.parse(e.additionalroles) : e.additionalroles) : [] })) || []);
-        setDepartments(data.departments.map((d: any) => d.name) || []);
-        setHistory(data.evaluations.map((e: any) => ({...e, criteria: e.responses ? (typeof e.responses === 'string' ? JSON.parse(e.responses) : e.responses) : [], analysis: e.analysis ? (typeof e.analysis === 'string' ? JSON.parse(e.analysis) : e.analysis) : null })) || []);
+        // Parseo de datos desde PostgreSQL (manejo de JSON strings)
+        setEmployees(data.employees.map((e: any) => ({
+          ...e, 
+          additionalRoles: e.additionalroles ? (typeof e.additionalroles === 'string' ? JSON.parse(e.additionalroles) : e.additionalroles) : [] 
+        })));
+        
+        // Mapeo simple para departamentos
+        setDepartments(data.departments.map((d: any) => d.name));
+
+        // Parseo de historial y criterios
+        setHistory(data.evaluations.map((e: any) => ({
+          ...e, 
+          criteria: e.responses ? (typeof e.responses === 'string' ? JSON.parse(e.responses) : e.responses) : [], 
+          analysis: e.analysis ? (typeof e.analysis === 'string' ? JSON.parse(e.analysis) : e.analysis) : null 
+        })));
       }
     } catch (error) {
-      console.error('Error fetching data, using initial constants:', error);
+      console.error('Error cargando datos, usando constantes:', error);
       setEmployees(INITIAL_EMPLOYEES);
       setDepartments(DEPARTMENTS);
       setHistory([]);
@@ -59,21 +71,26 @@ const App: React.FC = () => {
     }
   };
 
+  // FUNCIÓN PARA GUARDAR DATOS (POST)
   const saveData = async (dataToSave: { employees: Employee[], departments: Department[], evaluations: SavedEvaluation[] }) => {
     setIsSaving(true);
+    setError(null);
     try {
       const response = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSave),
       });
+      
       if (!response.ok) {
-        throw new Error('Server responded with an error');
+        throw new Error('El servidor no pudo guardar los cambios.');
       }
-      await fetchData(); // Refetch data to ensure UI is in sync with the server
+      
+      // Recargar para confirmar que lo que vemos es lo que está en la DB
+      await fetchData(); 
     } catch (error) {
       console.error('Error saving data:', error);
-      setError('No se pudieron guardar los cambios en el servidor.');
+      setError('Error de conexión: No se pudo guardar en el servidor.');
     } finally {
       setIsSaving(false);
     }
@@ -148,19 +165,21 @@ const App: React.FC = () => {
           : e
       );
 
+      // Guardado automático al terminar evaluación
       await saveData({ employees: newEmployees, departments, evaluations: newHistory });
 
       setState(prev => ({ ...prev, analysis, step: 'report', viewingEvaluatorId: currentUser?.id }));
     } catch (e) {
-      setError("Error generando el reporte.");
+      setError("Error generando el reporte con IA.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDeleteEvaluation = async (id: string) => {
-    const newHistory = history.filter(h => h.id !== id);
+    if (!confirm('¿Seguro que quieres borrar esta evaluación?')) return;
     
+    const newHistory = history.filter(h => h.id !== id);
     const newEmployees = employees.map(emp => {
       const empHistory = newHistory.filter((h: SavedEvaluation) => h.employeeId === emp.id);
       if (empHistory.length === 0) return { ...emp, averageScore: undefined };
@@ -177,7 +196,11 @@ const App: React.FC = () => {
   };
 
   const handleAdminSave = async (updatedEmployees: Employee[], updatedDepartments: Department[]) => {
-    await saveData({ employees: updatedEmployees, departments: updatedDepartments, evaluations: history });
+    await saveData({ 
+      employees: updatedEmployees, 
+      departments: updatedDepartments, 
+      evaluations: history 
+    });
   };
 
   const returnToDashboard = () => {
@@ -226,7 +249,6 @@ const App: React.FC = () => {
         </nav>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* Mobile Nav Icons */}
           <div className="flex lg:hidden items-center gap-1 mr-2 border-r border-slate-800 pr-2">
             <button 
               onClick={() => setState(prev => ({ ...prev, step: 'dashboard' }))}
@@ -249,7 +271,9 @@ const App: React.FC = () => {
             <Settings size={20} className="sm:w-[22px] sm:h-[22px]" />
           </button>
           <button 
-            onClick={() => setIsLoggedIn(false)}
+            onClick={() => {
+              if(confirm('¿Cerrar sesión?')) setIsLoggedIn(false);
+            }}
             className="p-2 sm:p-3 hover:bg-slate-800 rounded-xl transition-colors text-slate-500 hover:text-red-400"
             title="Cerrar Sesión"
           >
@@ -277,6 +301,12 @@ const App: React.FC = () => {
       {renderHeader()}
 
       <main className="flex-1">
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-4 mx-auto max-w-7xl mt-4 rounded-xl text-center font-bold">
+            {error}
+          </div>
+        )}
+
         {state.step === 'dashboard' && (
           <Dashboard 
             evaluations={history}
@@ -316,12 +346,7 @@ const App: React.FC = () => {
                 </button>
                 <h2 className="text-3xl font-bold text-white">{selectedEmployee.name}</h2>
                 <div className="text-slate-400 text-lg">
-                  {(selectedEmployee.reportsTo === currentUser?.id || !currentUser) && (
-                    <div>{selectedEmployee.jobTitle} • {selectedEmployee.department}</div>
-                  )}
-                  {selectedEmployee.additionalRoles?.filter(r => r.reportsTo === currentUser?.id || !currentUser).map((r, i) => (
-                    <div key={i} className="text-sm opacity-60 italic">{r.jobTitle} • {r.department}</div>
-                  ))}
+                  <div>{selectedEmployee.jobTitle} • {selectedEmployee.department}</div>
                 </div>
               </div>
               <div className="text-right hidden sm:block">
@@ -331,12 +356,6 @@ const App: React.FC = () => {
             </div>
 
             <div className="bg-slate-900 rounded-3xl shadow-xl overflow-hidden border border-slate-800">
-              <div className="hidden md:grid grid-cols-12 gap-6 p-4 bg-slate-950 border-b border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <div className="col-span-4">Criterio</div>
-                  <div className="col-span-4 text-center">Desempeño</div>
-                  <div className="col-span-4">Observaciones</div>
-              </div>
-
               {state.currentCriteria.map((criterion) => (
                 <RangeSlider 
                   key={criterion.id}
@@ -402,7 +421,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4 border border-slate-800">
             <Loader2 className="animate-spin text-orange-500" size={40} />
-            <p className="font-bold text-white">{isSaving ? 'Guardando cambios...' : 'Procesando con IA...'}</p>
+            <p className="font-bold text-white">{isSaving ? 'Guardando en la base de datos...' : 'Procesando con IA...'}</p>
           </div>
         </div>
       )}
