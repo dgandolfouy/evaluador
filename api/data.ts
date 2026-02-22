@@ -2,14 +2,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { createPool } from '@vercel/postgres';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Intentamos usar la variable de entorno, si no existe tiramos un error claro
-  const connectionString = process.env.POSTGRES_URL;
-  
-  if (!connectionString) {
-    return res.status(500).json({ error: "Falta la variable POSTGRES_URL en Vercel" });
-  }
-
-  const pool = createPool({ connectionString });
+  const pool = createPool();
 
   if (req.method === 'GET') {
     try {
@@ -18,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { rows: evaluations } = await pool.sql`SELECT * FROM evaluations;`;
       return res.status(200).json({ employees, departments, evaluations });
     } catch (error) {
-      return res.status(500).json({ error: "Error leyendo de las tablas. ¿Creaste las tablas en el SQL Editor?" });
+      return res.status(500).json({ error: "Error al leer datos" });
     }
   }
 
@@ -34,17 +27,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       for (const emp of employees) {
+        // Mapeo detallado de cada campo que mencionaste
         await pool.sql`
           INSERT INTO employees (id, name, department, jobTitle, reportsTo, additionalRoles, averageScore)
-          VALUES (${emp.id}, ${emp.name}, ${emp.department}, ${emp.jobTitle}, ${emp.reportsTo}, ${emp.additionalRoles ? JSON.stringify(emp.additionalRoles) : null}, ${emp.averageScore || 0});
+          VALUES (
+            ${emp.id}, 
+            ${emp.name}, 
+            ${emp.department}, 
+            ${emp.jobTitle || 'Sin puesto'}, 
+            ${emp.reportsTo || 'Sin superior'}, 
+            ${emp.additionalRoles ? JSON.stringify(emp.additionalRoles) : '[]'}, 
+            ${emp.averageScore || 0}
+          );
         `;
       }
 
       if (evaluations && Array.isArray(evaluations)) {
         for (const ev of evaluations) {
           await pool.sql`
-            INSERT INTO evaluations (id, employeeId, evaluatorId, date, responses, finalScore, comments)
-            VALUES (${ev.id}, ${ev.employeeId}, ${ev.evaluatorId}, ${ev.date}, ${JSON.stringify(ev.criteria)}, ${ev.finalScore || 0}, ${ev.comments || ''});
+            INSERT INTO evaluations (id, employeeId, evaluatorId, date, criteria, finalScore, comments, analysis)
+            VALUES (
+              ${ev.id}, ${ev.employeeId}, ${ev.evaluatorId}, ${ev.date}, 
+              ${JSON.stringify(ev.criteria)}, ${ev.finalScore || 0}, 
+              ${ev.comments || ''}, ${ev.analysis ? JSON.stringify(ev.analysis) : null}
+            );
           `;
         }
       }
@@ -53,8 +59,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true });
     } catch (error) {
       await pool.sql`ROLLBACK;`;
-      return res.status(500).json({ error: "Error guardando datos" });
+      console.error(error);
+      return res.status(500).json({ error: "Error al guardar todos los campos" });
     }
   }
-  return res.status(405).json({ error: "Method not allowed" });
+  return res.status(405).json({ error: "Método no permitido" });
 }
