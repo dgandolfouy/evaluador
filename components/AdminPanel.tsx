@@ -17,7 +17,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   setDepartments, 
   onClose 
 }) => {
-  const [activeTab, setActiveTab] = useState<'employees' | 'departments' | 'security'>('employees');
+  const [activeTab, setActiveTab] = useState<'employees' | 'departments'>('employees');
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [editingDept, setEditingDept] = useState<string | null>(null);
   const [editDeptValue, setEditDeptValue] = useState('');
@@ -29,7 +29,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     additionalRoles: []
   });
   const [newDept, setNewDept] = useState('');
-  const [systemPassword, setSystemPassword] = useState(() => localStorage.getItem('qualiTrackPassword') || '123');
   const formRef = useRef<HTMLDivElement>(null);
 
   const handleSaveEmployee = () => {
@@ -168,11 +167,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }));
   };
 
-  const handleSavePassword = () => {
-    localStorage.setItem('qualiTrackPassword', systemPassword);
-    alert('Contraseña actualizada correctamente.');
-  };
-
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-slate-900 w-full max-w-5xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-slate-800">
@@ -210,14 +204,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             }`}
           >
             <Building2 size={16} className="sm:w-[18px] sm:h-[18px]" /> Departamentos
-          </button>
-          <button 
-            onClick={() => setActiveTab('security')}
-            className={`pb-3 sm:pb-4 px-1 sm:px-2 flex items-center gap-2 sm:gap-2.5 text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] transition-all border-b-2 whitespace-nowrap ${
-              activeTab === 'security' ? 'border-orange-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Lock size={16} className="sm:w-[18px] sm:h-[18px]" /> Seguridad
           </button>
         </div>
 
@@ -520,34 +506,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </section>
             </div>
-          ) : (
-            <div className="space-y-10 animate-fade-in">
-              {/* Security Settings */}
-              <section className="bg-slate-800 p-8 rounded-[2rem] border border-slate-700 shadow-inner">
-                <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                  <Lock size={16} className="text-orange-500" /> Seguridad del Sistema
-                </h3>
-                <div className="space-y-4 max-w-md">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Contraseña de Acceso</label>
-                    <input 
-                      type="text" 
-                      value={systemPassword}
-                      onChange={e => setSystemPassword(e.target.value)}
-                      className="w-full px-6 py-4 rounded-2xl border border-slate-600 outline-none focus:ring-2 focus:ring-orange-500 bg-slate-900 text-white transition-all font-bold text-lg placeholder:text-slate-600"
-                    />
-                    <p className="text-xs text-slate-500 px-2">Esta contraseña será requerida para que cualquier usuario ingrese al sistema.</p>
-                  </div>
-                  <button 
-                    onClick={handleSavePassword}
-                    className="w-full bg-orange-600 text-white font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-orange-500 transition-all shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2"
-                  >
-                    <Save size={18} /> Actualizar Contraseña
-                  </button>
-                </div>
-              </section>
-            </div>
-          )}
+          ) : null}
         </div>
 
         <div className="p-4 sm:p-6 bg-slate-900 border-t border-slate-800 flex justify-end">

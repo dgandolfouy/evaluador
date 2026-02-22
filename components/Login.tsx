@@ -5,11 +5,10 @@ import { Logo } from './Logo';
 
 interface LoginProps {
   employees: Employee[];
-  systemPassword: string;
   onLogin: (employee: Employee) => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ employees, systemPassword, onLogin }) => {
+export const Login: React.FC<LoginProps> = ({ employees, onLogin }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [password, setPassword] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -34,10 +33,6 @@ export const Login: React.FC<LoginProps> = ({ employees, systemPassword, onLogin
     e.preventDefault();
     if (!selectedEmployee) {
       setError('Por favor seleccione su nombre de la lista.');
-      return;
-    }
-    if (password !== systemPassword) {
-      setError('Contraseña incorrecta.');
       return;
     }
     onLogin(selectedEmployee);
@@ -103,20 +98,6 @@ export const Login: React.FC<LoginProps> = ({ employees, systemPassword, onLogin
                   ))}
                 </div>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Contraseña</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                <input
-                  type="password"
-                  placeholder="••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3.5 sm:py-4 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-white placeholder:text-slate-600 transition-all font-medium text-sm sm:text-base"
-                />
-              </div>
             </div>
 
             {error && (

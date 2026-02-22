@@ -31,48 +31,47 @@ const App: React.FC = () => {
 
   // Load data on mount
   useEffect(() => {
-    const savedHistory = localStorage.getItem('qualiTrackHistory');
-    const savedEmployees = localStorage.getItem('qualiTrackEmployees');
-    const savedDepartments = localStorage.getItem('qualiTrackDepartments');
-    
-    if (savedHistory) {
+    const fetchData = async () => {
       try {
-        const parsedHistory = JSON.parse(savedHistory);
-        setHistory(parsedHistory);
-        
-        // Update employee average scores based on history
-        setEmployees(prev => prev.map(emp => {
-          const empHistory = parsedHistory.filter((h: SavedEvaluation) => h.employeeId === emp.id);
-          if (empHistory.length === 0) return emp;
-          
-          const totalScore = empHistory.reduce((acc: number, h: SavedEvaluation) => {
-            const avg = h.criteria.reduce((sum, c) => sum + c.score, 0) / h.criteria.length;
-            return acc + avg;
-          }, 0);
-          
-          return { ...emp, averageScore: totalScore / empHistory.length };
-        }));
-      } catch (e) { console.error(e); }
-    }
-    
-    if (savedEmployees) {
-      try { setEmployees(JSON.parse(savedEmployees)); } catch (e) { console.error(e); }
-    }
-
-    if (savedDepartments) {
-      try { setDepartments(JSON.parse(savedDepartments)); } catch (e) { console.error(e); }
-    }
+        const response = await fetch('/api/data');
+        const data = await response.json();
+        if (data.employees) setEmployees(data.employees.rows.map((e: any) => ({...e, additionalRoles: e.additionalroles ? JSON.parse(e.additionalroles) : [] })));
+        if (data.departments) setDepartments(data.departments.rows.map((d: any) => d.name));
+        if (data.evaluations) setHistory(data.evaluations.rows.map((e: any) => ({...e, responses: e.responses ? JSON.parse(e.responses) : [] })));
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+    fetchData();
   }, []);
+
+  // Save data to API
+  const saveData = async () => {
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employees, departments, evaluations: history }),
+      });
+    } catch (error) {
+      console.error('Error saving data:', error);
+    }
+  };
 
   // Save employees when they change
   useEffect(() => {
-    localStorage.setItem('qualiTrackEmployees', JSON.stringify(employees));
+    if (employees.length > 0) saveData();
   }, [employees]);
 
   // Save departments when they change
   useEffect(() => {
-    localStorage.setItem('qualiTrackDepartments', JSON.stringify(departments));
+    if (departments.length > 0) saveData();
   }, [departments]);
+
+  // Save history when it changes
+  useEffect(() => {
+    if (history.length > 0) saveData();
+  }, [history]);
 
   const selectedEmployee = useMemo(() => 
     employees.find(e => e.id === state.selectedEmployeeId) || null
@@ -127,7 +126,6 @@ const App: React.FC = () => {
 
       const newHistory = [completedEvaluation, ...history];
       setHistory(newHistory);
-      localStorage.setItem('qualiTrackHistory', JSON.stringify(newHistory));
 
       // Update employee average score
       const empHistory = newHistory.filter(h => h.employeeId === selectedEmployee.id);
@@ -153,7 +151,6 @@ const App: React.FC = () => {
   const handleDeleteEvaluation = (id: string) => {
     const newHistory = history.filter(h => h.id !== id);
     setHistory(newHistory);
-    localStorage.setItem('qualiTrackHistory', JSON.stringify(newHistory));
 
     // Recalculate averages
     setEmployees(prev => prev.map(emp => {
@@ -253,7 +250,6 @@ const App: React.FC = () => {
     return (
       <Login 
         employees={employees} 
-        systemPassword={localStorage.getItem('qualiTrackPassword') || '123'} 
         onLogin={(user) => {
           setCurrentUser(user);
           setIsLoggedIn(true);
