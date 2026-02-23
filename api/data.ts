@@ -6,31 +6,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const { rows: employees = [] } = await sql`SELECT id, name, department, "jobTitle", "reportsTo", "additionalRoles", "averageScore" FROM employees;`;
       const { rows: departments = [] } = await sql`SELECT * FROM departments;`;
+      const { rows: evaluations = [] } = await sql`SELECT * FROM evaluations;`;
       
-      // Mapeo ultra-seguro para que el frontend nunca reciba un 'undefined'
-      const safeEmployees = employees.map(emp => ({
-        id: emp.id || String(Math.random()),
-        name: emp.name || '',
-        department: emp.department || '',
-        jobTitle: emp.jobTitle || emp.jobtitle || '',
-        reportsTo: emp.reportsTo || emp.reportsto || '',
-        additionalRoles: Array.isArray(emp.additionalRoles) ? emp.additionalRoles : [],
-        averageScore: Number(emp.averageScore || 0)
-      }));
-
       return res.status(200).json({ 
-        employees: safeEmployees, 
-        departments: departments.map(d => typeof d === 'string' ? d : d.name) 
+        employees, 
+        departments,
+        evaluations
       });
     } catch (error) {
       console.error(error);
-      return res.status(200).json({ employees: [], departments: [] }); // Devolvemos vacío pero no error 500
+      return res.status(500).json({ error: "Error al leer de la base de datos" });
     }
   }
 
   if (req.method === 'POST') {
     try {
-      const { employees = [], departments = [] } = req.body;
+      const { employees = [], departments = [], evaluations = [] } = req.body;
       await sql`BEGIN;`;
       await sql`TRUNCATE TABLE evaluations, employees, departments RESTART IDENTITY CASCADE;`;
 
@@ -50,6 +41,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           );
         `;
       }
+
+      for (const ev of evaluations) {
+        await sql`
+          INSERT INTO evaluations (id, "employeeId", "evaluatorId", date, criteria, "finalScore", comments)
+          VALUES (${ev.id}, ${ev.employeeId}, ${ev.evaluatorId}, ${ev.date}, ${JSON.stringify(ev.criteria)}, ${ev.finalScore}, ${ev.comments || ''});
+        `;
+      }
+
       await sql`COMMIT;`;
       return res.status(200).json({ success: true });
     } catch (error) {
