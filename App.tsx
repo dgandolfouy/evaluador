@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { EvaluationState, Employee, Criterion, SavedEvaluation, Department } from './types';
+import { EvaluationState, Employee, Criterion, SavedEvaluation } from './types';
+import { analyzeEvaluation } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
 import { Organigram } from './components/Organigram';
 import { EvaluationForm } from './components/EvaluationForm';
 import { AnalysisView } from './components/AnalysisView';
+import { AdminPanel } from './components/AdminPanel';
 import { Login } from './components/Login';
 import { Logo } from './components/Logo';
-import { AdminPanel } from './components/AdminPanel';
-import { INITIAL_EMPLOYEES, DEPARTMENTS } from './constants';
+import { INITIAL_EMPLOYEES } from './constants';
 import { LayoutDashboard, Users, BarChart3, LogOut, Loader2, Settings } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -17,53 +18,52 @@ const App: React.FC = () => {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  
-  const [state, setState] = useState<EvaluationState>({
-    step: 'dashboard', selectedEmployeeId: null, currentCriteria: [], analysis: null,
-  });
+  const [state, setState] = useState<EvaluationState>({ step: 'dashboard', selectedEmployeeId: null, currentCriteria: [], analysis: null });
 
-  const superUsers = ["DANIEL GANDOLFO", "CRISTINA GARCIA", "PABLO CANDIA", "GONZALO VIÑAS"];
-  const isSuperUser = currentUser && superUsers.includes(currentUser.name.toUpperCase());
+  // PERMISOS TOTALES: Vos, Cristina, Pablo y Gonzalo
+  const leaders = ["DANIEL GANDOLFO", "CRISTINA GARCIA", "PABLO CANDIA", "GONZALO VIÑAS"];
+  const isSuperUser = currentUser && leaders.includes(currentUser.name.toUpperCase());
 
   const fetchData = async () => {
     try {
       const response = await fetch('/api/data');
-      if (!response.ok) throw new Error('Error en la conexión con la base de datos');
       const data = await response.json();
-      
-      // PRIORIDAD: Si hay datos en la DB, los usamos. Si no, cargamos los iniciales.
-      if (data.employees && data.employees.length > 0) {
-        setEmployees(data.employees);
-        setHistory(data.evaluations || []);
-      } else {
-        setEmployees(INITIAL_EMPLOYEES);
-      }
+      // Si Neon falló y está vacío, cargamos los iniciales pero NO los guardamos solos
+      setEmployees(data.employees?.length > 0 ? data.employees : INITIAL_EMPLOYEES);
+      setHistory(data.evaluations || []);
     } catch (e) {
-      console.error("Error al cargar datos:", e);
       setEmployees(INITIAL_EMPLOYEES);
     }
   };
 
   useEffect(() => { fetchData(); }, []);
 
-  const handleSaveData = async (updatedEmployees: Employee[], updatedHistory: SavedEvaluation[]) => {
-    // PROTECCIÓN CRÍTICA: No permite guardar si la lista de empleados viene vacía por error
-    if (!updatedEmployees || updatedEmployees.length === 0) {
-      console.error("Abortando guardado: No se pueden enviar datos vacíos.");
-      return;
-    }
-
+  const handleFinishEvaluation = async (criteria: any, analysis: any) => {
     setIsSaving(true);
+    const newEval = { 
+      id: Date.now().toString(), 
+      employeeId: state.selectedEmployeeId!, 
+      date: new Date().toISOString(), 
+      criteria, 
+      analysis, 
+      evaluatorId: currentUser?.id || '' 
+    };
+
+    const updatedHistory = [newEval, ...history];
+
     try {
-      const response = await fetch('/api/data', {
+      const res = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employees: updatedEmployees, evaluations: updatedHistory }),
+        body: JSON.stringify({ employees, evaluations: updatedHistory }),
       });
-      if (!response.ok) throw new Error('Error al sincronizar con Neon');
-      await fetchData();
+      if (!res.ok) throw new Error();
+      
+      setHistory(updatedHistory);
+      setState({ ...state, step: 'report', analysis, currentCriteria: criteria });
     } catch (e) {
-      alert("Error de sincronización con RR Etiquetas. Los cambios no se guardaron en la nube.");
+      alert("Error de sincronización con Neon. El informe se verá ahora pero revise su conexión.");
+      setState({ ...state, step: 'report', analysis, currentCriteria: criteria });
     } finally {
       setIsSaving(false);
     }
@@ -76,59 +76,33 @@ const App: React.FC = () => {
       <header className="bg-slate-900 border-b border-slate-800 h-28 flex items-center px-12 justify-between sticky top-0 z-50">
         <Logo className="w-44" />
         <div className="flex items-center gap-6">
-          <div className="text-right hidden sm:block">
+          <div className="text-right">
             <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{currentUser?.jobTitle}</p>
             <p className="text-sm font-bold uppercase">{currentUser?.name}</p>
           </div>
-          {isSuperUser && (
-            <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500 hover:bg-slate-700 transition-all">
-              <Settings size={22} />
-            </button>
-          )}
-          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 hover:bg-red-950/40 transition-all">
-            <LogOut size={22} />
-          </button>
+          {isSuperUser && <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500"><Settings size={22} /></button>}
+          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500"><LogOut size={22} /></button>
         </div>
       </header>
 
       {isSuperUser && (
         <nav className="flex justify-center mt-6 gap-4 px-4">
-          <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'dashboard' ? 'bg-orange-600 shadow-lg' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><LayoutDashboard size={18}/> Panel</button>
-          <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'organigram' ? 'bg-orange-600 shadow-lg' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><Users size={18}/> Organigrama</button>
+          <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'dashboard' ? 'bg-orange-600' : 'bg-slate-900'}`}><LayoutDashboard size={18}/> Panel</button>
+          <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'organigram' ? 'bg-orange-600' : 'bg-slate-900'}`}><Users size={18}/> Organigrama</button>
+          <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'stats' ? 'bg-orange-600' : 'bg-slate-900'}`}><BarChart3 size={18}/> Estadísticas</button>
         </nav>
       )}
 
       <main className="flex-1">
-        {state.step === 'dashboard' && (
-          <Dashboard 
-            evaluations={history} employees={employees} currentUser={currentUser} 
-            onQuickStart={(id) => setState({ ...state, step: 'form', selectedEmployeeId: id })}
-            onView={(ev) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })}
-          />
-        )}
-        {state.step === 'organigram' && (
-          <div className="p-8 max-w-6xl mx-auto">
-            <h2 className="text-2xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4 tracking-tighter">Estructura Organizacional</h2>
-            <Organigram employees={employees} onSelectEmployee={(emp) => {
-               if (emp.id === currentUser?.id) return alert("No puedes evaluarte a ti mismo.");
-               setState({ ...state, step: 'form', selectedEmployeeId: emp.id });
-            }} />
-          </div>
-        )}
-        {state.step === 'form' && state.selectedEmployeeId && (
-          <EvaluationForm 
-            employee={employees.find(e => e.id === state.selectedEmployeeId)!} 
-            onComplete={async (criteria, analysis) => {
-               const newEval = { id: Date.now().toString(), employeeId: state.selectedEmployeeId!, date: new Date().toISOString(), criteria, analysis, evaluatorId: currentUser?.id || '' };
-               await handleSaveData(employees, [newEval, ...history]);
-               setState({...state, step: 'dashboard'});
-            }}
-            onCancel={() => setState({...state, step: 'dashboard'})}
-          />
-        )}
+        {state.step === 'dashboard' && <Dashboard evaluations={history} employees={employees} currentUser={currentUser} onQuickStart={(id: string) => setState({...state, step: 'form', selectedEmployeeId: id})} onView={(ev: any) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })} />}
+        {state.step === 'organigram' && <div className="p-8 max-w-6xl mx-auto"><Organigram employees={employees} onSelectEmployee={(emp: any) => setState({...state, step: 'form', selectedEmployeeId: emp.id})} /></div>}
+        {state.step === 'form' && <EvaluationForm employee={employees.find(e => e.id === state.selectedEmployeeId)!} onComplete={handleFinishEvaluation} onCancel={() => setState({...state, step: 'dashboard'})} />}
+        {state.step === 'report' && <AnalysisView employee={employees.find(e => e.id === state.selectedEmployeeId)!} criteria={state.currentCriteria} analysis={state.analysis} onReset={() => setState({...state, step: 'dashboard'})} />}
+        {state.step === 'stats' && <div className="p-20 text-center opacity-30 font-black uppercase text-2xl">Módulo de Estadísticas ISO 9001</div>}
       </main>
 
-      {isAdminOpen && <AdminPanel employees={employees} departments={DEPARTMENTS} onClose={() => setIsAdminOpen(false)} onSave={(e) => handleSaveData(e, history)} />}
+      {isAdminOpen && <AdminPanel employees={employees} onClose={() => setIsAdminOpen(false)} onSave={(e) => fetchData()} />}
+      {isSaving && <div className="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center"><Loader2 className="animate-spin text-orange-500 mb-4" size={48} /><p className="font-black uppercase text-xs">Guardando en RR Etiquetas...</p></div>}
     </div>
   );
 };
