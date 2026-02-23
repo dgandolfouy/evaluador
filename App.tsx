@@ -1,22 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { EvaluationState, Employee, Criterion, SavedEvaluation, Department } from './types';
-import { analyzeEvaluation } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
 import { Organigram } from './components/Organigram';
-import { AdminPanel } from './components/AdminPanel';
 import { EvaluationForm } from './components/EvaluationForm';
 import { AnalysisView } from './components/AnalysisView';
 import { Login } from './components/Login';
 import { Logo } from './components/Logo';
 import { INITIAL_EMPLOYEES, DEPARTMENTS } from './constants';
-import { Settings, Users, LayoutDashboard, BarChart3, LogOut, ArrowLeft, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Users, BarChart3, LogOut, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [history, setHistory] = useState<SavedEvaluation[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -32,159 +28,93 @@ const App: React.FC = () => {
       const response = await fetch('/api/data');
       const data = await response.json();
       if (data.employees) {
-        setEmployees(data.employees.map((e: any) => ({
-          ...e, jobTitle: e.jobTitle || e.jobtitle, reportsTo: e.reportsTo || e.reportsto,
-          additionalRoles: e.additionalRoles || e.additionalroles || []
-        })));
-        setDepartments(data.departments.map((d: any) => typeof d === 'string' ? d : d.name));
+        setEmployees(data.employees);
         setHistory(data.evaluations || []);
       }
     } catch (e) {
       setEmployees(INITIAL_EMPLOYEES);
-      setDepartments(DEPARTMENTS);
     }
   };
 
   useEffect(() => { fetchData(); }, []);
 
-  const [globalCriteria, setGlobalCriteria] = useState<Criterion[]>([
-    { id: '1', name: 'Productividad', description: 'Capacidad para cumplir con volúmenes y tiempos.', score: 5, category: 'Producción' },
-    { id: '2', name: 'Calidad del Trabajo', description: 'Precisión técnica y estándares ISO 9001.', score: 5, category: 'Calidad' },
-    { id: '3', name: 'Seguridad e Higiene', description: 'Uso de EPP y orden del puesto.', score: 5, category: 'Normativa' },
-    { id: '4', name: 'Trabajo en Equipo', description: 'Actitud y colaboración grupal.', score: 5, category: 'Actitud' }
-  ]);
+  const defaultCriteria = [
+    { id: '1', name: 'Productividad', description: 'Capacidad para cumplir con volúmenes y tiempos.', score: 5 },
+    { id: '2', name: 'Calidad del Trabajo', description: 'Cumplimiento de estándares ISO 9001.', score: 5 },
+    { id: '3', name: 'Seguridad e Higiene', description: 'Uso de EPP y orden del puesto.', score: 5 },
+    { id: '4', name: 'Trabajo en Equipo', description: 'Colaboración y actitud grupal.', score: 5 }
+  ];
 
-  const handleQuickEvaluation = (employeeId: string) => {
-    setState({ ...state, step: 'form', selectedEmployeeId: employeeId, currentCriteria: globalCriteria });
-  };
-
-  const handleCompleteEvaluation = async (criteria: Criterion[]) => {
-    setIsSaving(true);
-    const empId = state.selectedEmployeeId!;
-    const newEval: SavedEvaluation = {
-      id: Date.now().toString(),
-      employeeId: empId,
-      date: new Date().toISOString(),
-      criteria: criteria,
-      evaluatorId: currentUser?.id || '',
-      analysis: null 
-    };
-    const updatedHistory = [newEval, ...history];
-    try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employees, departments, evaluations: updatedHistory }),
-      });
-      setHistory(updatedHistory);
-      setState({ ...state, step: 'dashboard' });
-      setIsSaving(false);
-      
-      const employee = employees.find(e => e.id === empId)!;
-      analyzeEvaluation(employee, criteria).then(async (analysis) => {
-        const finalHistory = updatedHistory.map(ev => ev.id === newEval.id ? { ...ev, analysis } : ev);
-        await fetch('/api/data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ employees, departments, evaluations: finalHistory }),
-        });
-        setHistory(finalHistory);
-      });
-    } catch (e) {
-      alert("Error al sincronizar.");
-      setIsSaving(false);
+  const handleSelectEmployee = (emp: Employee) => {
+    if (emp.id === currentUser?.id) return alert("No puedes evaluarte a ti mismo.");
+    if (emp.reportsTo === currentUser?.id) {
+      setState({ ...state, step: 'form', selectedEmployeeId: emp.id, currentCriteria: defaultCriteria });
+    } else {
+      alert(`Consulta: ${emp.name} no depende de ti directamente.`);
     }
   };
 
   if (!isLoggedIn) return <Login employees={employees} onLogin={(u) => { setCurrentUser(u); setIsLoggedIn(true); }} />;
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col text-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-950 flex flex-col text-white font-sans">
       <header className="bg-slate-900 border-b border-slate-800 h-28 flex items-center px-12 justify-between sticky top-0 z-50">
         <Logo className="w-44" />
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <div className="text-right hidden sm:block">
             <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{currentUser?.jobTitle}</p>
-            <p className="text-xs font-bold text-white uppercase">{currentUser?.name}</p>
+            <p className="text-sm font-bold">{currentUser?.name}</p>
           </div>
-          <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500 shadow-lg hover:bg-slate-700 transition-all">
-            <Settings size={22} />
-          </button>
-          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 hover:bg-red-900/30 transition-all">
-            <LogOut size={22} />
-          </button>
+          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 hover:bg-red-950/40 transition-all"><LogOut size={22} /></button>
         </div>
       </header>
 
-      {/* NAVEGACIÓN SUPERIOR: Panel, Organigrama y Estadísticas */}
-      <nav className="hidden lg:flex max-w-7xl mx-auto mt-6 gap-3 bg-slate-900/50 p-2 rounded-3xl border border-slate-800 shadow-xl">
-        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'dashboard' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}>
-          <LayoutDashboard size={18}/> Panel
-        </button>
-        <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'organigram' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}>
-          <Users size={18}/> Organigrama
-        </button>
-        <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'stats' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}>
-          <BarChart3 size={18}/> Estadísticas
-        </button>
+      <nav className="flex justify-center mt-6 gap-4 px-4">
+        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'dashboard' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/40' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><LayoutDashboard size={18}/> Panel</button>
+        <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'organigram' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/40' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><Users size={18}/> Organigrama</button>
+        <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'stats' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/40' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><BarChart3 size={18}/> Estadísticas</button>
       </nav>
 
-      <main className="flex-1 pb-24 lg:pb-8">
+      <main className="flex-1 pb-20">
         {state.step === 'dashboard' && (
           <Dashboard 
             evaluations={history} employees={employees} currentUser={currentUser} 
-            onNew={() => setState({ ...state, step: 'organigram' })}
-            onQuickStart={handleQuickEvaluation}
-            onView={(ev: any) => setState({ step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })}
+            onQuickStart={(id: string) => setState({ ...state, step: 'form', selectedEmployeeId: id, currentCriteria: defaultCriteria })}
+            onView={(ev: any) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })}
           />
         )}
-
         {state.step === 'organigram' && (
-          <div className="p-6 max-w-6xl mx-auto">
-            <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-8 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest text-slate-400 hover:text-white transition-all"><ArrowLeft size={16}/> Volver</button>
-            <h2 className="text-xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4 tracking-tight text-white">Organigrama RR Etiquetas</h2>
-            <Organigram 
-              employees={employees} 
-              onSelectEmployee={(emp) => {
-                if (emp.id === currentUser?.id) return alert("No puedes realizar tu propia evaluación.");
-                if (emp.reportsTo === currentUser?.id) handleQuickEvaluation(emp.id);
-                else alert(`Consulta: ${emp.name} no está bajo tu cargo directo.`);
-              }} 
-            />
+          <div className="p-8 max-w-6xl mx-auto">
+            <h2 className="text-2xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4 tracking-tighter">Organigrama RR Etiquetas</h2>
+            <Organigram employees={employees} onSelectEmployee={handleSelectEmployee} />
           </div>
         )}
-
         {state.step === 'form' && state.selectedEmployeeId && (
           <EvaluationForm 
-            employee={employees.find(e => e.id === state.selectedEmployeeId)!}
-            initialCriteria={state.currentCriteria}
+            employee={employees.find(e => e.id === state.selectedEmployeeId)!} 
+            initialCriteria={state.currentCriteria} 
             currentUser={currentUser}
-            onUpdateGlobalCriteria={setGlobalCriteria}
-            onComplete={handleCompleteEvaluation}
+            onComplete={async (criteria: any, analysis: any) => {
+              setIsSaving(true);
+              const newEval = { id: Date.now().toString(), employeeId: state.selectedEmployeeId!, date: new Date().toISOString(), criteria, analysis, evaluatorId: currentUser?.id || '' };
+              await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employees, evaluations: [newEval, ...history] }) });
+              await fetchData();
+              setState({...state, step: 'dashboard'});
+              setIsSaving(false);
+            }}
             onCancel={() => setState({...state, step: 'dashboard'})}
           />
         )}
-
-        {state.step === 'report' && (
-          <div className="p-6 max-w-4xl mx-auto">
-            <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-8 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest text-slate-400 hover:text-white transition-all"><ArrowLeft size={16}/> Volver</button>
-            {state.analysis ? (
-              <AnalysisView employee={employees.find(e => e.id === state.selectedEmployeeId)!} criteria={state.currentCriteria} analysis={state.analysis} onReset={() => setState({...state, step: 'dashboard'})} />
-            ) : (
-              <div className="bg-slate-900 p-20 rounded-[3rem] border border-slate-800 text-center">
-                <Loader2 className="animate-spin text-orange-500 mx-auto mb-4" size={40} />
-                <p className="text-white font-black uppercase text-xs tracking-widest leading-relaxed">Analizando desempeño...<br/><span className="text-slate-500 lowercase font-normal">El reporte se genera de fondo para no trabar el sistema.</span></p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {state.step === 'stats' && (
-          <div className="p-20 text-center opacity-30 font-black uppercase tracking-widest text-white">Módulo de Estadísticas ISO 9001 en Desarrollo</div>
-        )}
+        {state.step === 'report' && <AnalysisView employee={employees.find(e => e.id === state.selectedEmployeeId)!} criteria={state.currentCriteria} analysis={state.analysis} onReset={() => setState({...state, step: 'dashboard'})} />}
+        {state.step === 'stats' && <div className="p-20 text-center opacity-30 font-black uppercase tracking-widest text-2xl">Módulo de Estadísticas ISO 9001</div>}
       </main>
 
-      {isAdminOpen && <AdminPanel employees={employees} departments={departments} onClose={() => setIsAdminOpen(false)} onSave={fetchData} />}
+      {isSaving && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center gap-4">
+          <Loader2 className="animate-spin text-orange-500" size={48} />
+          <p className="font-black uppercase text-xs tracking-widest">Sincronizando con RR Etiquetas...</p>
+        </div>
+      )}
     </div>
   );
 };
