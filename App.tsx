@@ -13,6 +13,13 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<SavedEvaluation[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
+  const [globalCriteria, setGlobalCriteria] = useState<Criterion[]>([
+    { id: '1', name: 'Productividad', score: 5, feedback: '', category: 'Desempeño' },
+    { id: '2', name: 'Calidad ISO', score: 5, feedback: '', category: 'Calidad' },
+    { id: '3', name: 'Seguridad e Higiene', score: 5, feedback: '', category: 'Calidad' },
+    { id: '4', name: 'Trabajo en Equipo', score: 5, feedback: '', category: 'Competencias Blandas' },
+    { id: '5', name: 'Mantenimiento de Puesto', score: 5, feedback: '', category: 'Actitud' }
+  ]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
@@ -33,6 +40,14 @@ const App: React.FC = () => {
       if (data.employees) setEmployees(data.employees);
       if (data.departments) setDepartments(data.departments.map((d: any) => typeof d === 'string' ? d : d.name));
       if (data.evaluations) setHistory(data.evaluations);
+
+      if (data.settings) {
+        const critSetting = data.settings.find((s: any) => s.key === 'evaluation_criteria');
+        if (critSetting) {
+          const parsed = typeof critSetting.value === 'string' ? JSON.parse(critSetting.value) : critSetting.value;
+          if (Array.isArray(parsed)) setGlobalCriteria(parsed);
+        }
+      }
     } catch (e) {
       console.error("Neon Connection Failed:", e);
     }
@@ -106,7 +121,14 @@ const App: React.FC = () => {
           setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeid, currentCriteria: crit, analysis: an });
         }} />}
         {state.step === 'organigram' && <div className="p-8 max-w-6xl mx-auto"><Organigram employees={employees} onSelectEmployee={(emp: any) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id })} /></div>}
-        {state.step === 'form' && state.selectedEmployeeId && <EvaluationForm employee={employees.find(e => e.id === state.selectedEmployeeId)!} onComplete={handleComplete} onCancel={() => setState({ ...state, step: 'dashboard' })} />}
+        {state.step === 'form' && state.selectedEmployeeId && (
+          <EvaluationForm
+            employee={employees.find(e => e.id === state.selectedEmployeeId)!}
+            initialCriteria={globalCriteria}
+            onComplete={handleComplete}
+            onCancel={() => setState({ ...state, step: 'dashboard' })}
+          />
+        )}
         {state.step === 'report' && <AnalysisView employee={employees.find(e => e.id === state.selectedEmployeeId)!} criteria={state.currentCriteria} analysis={state.analysis} onReset={() => setState({ ...state, step: 'dashboard' })} />}
       </main>
 
@@ -114,14 +136,16 @@ const App: React.FC = () => {
         <AdminPanel
           employees={employees}
           departments={departments}
+          criteria={globalCriteria}
           onClose={() => setIsAdminOpen(false)}
-          onSave={async (emp, dept) => {
+          onSave={async (emp, dept, crit) => {
             try {
               setIsSaving(true);
+              const settings = crit ? [{ key: 'evaluation_criteria', value: crit }] : [];
               await fetch('/api/data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ employees: emp, departments: dept, evaluations: history }),
+                body: JSON.stringify({ employees: emp, departments: dept, evaluations: history, settings }),
               });
               await fetchData();
             } catch (e) {
