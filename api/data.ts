@@ -4,18 +4,18 @@ import { sql } from '@vercel/postgres';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     try {
-      const { rows: employees = [] } = await sql`SELECT id, name, department, jobtitle, reportsto, additionalroles, averagescore FROM employees;`;
+      const { rows: employees = [] } = await sql`SELECT * FROM employees;`;
       const { rows: departments = [] } = await sql`SELECT * FROM departments;`;
-      const { rows: evaluations = [] } = await sql`SELECT id, employeeid, evaluatorid, date, criteria, finalscore, analysis FROM evaluations;`;
+      const { rows: evaluations = [] } = await sql`SELECT * FROM evaluations;`;
 
       return res.status(200).json({
         employees,
         departments,
         evaluations
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      return res.status(500).json({ error: "Error al leer de la base de datos" });
+      return res.status(500).json({ error: "Error al leer de la base de datos", details: error.message });
     }
   }
 
