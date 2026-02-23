@@ -140,7 +140,7 @@ const App: React.FC = () => {
           const an = typeof ev.analysis === 'string' ? JSON.parse(ev.analysis) : ev.analysis;
           setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeid, currentCriteria: crit, analysis: an });
         }} />}
-        {state.step === 'organigram' && <div className="p-8 max-w-6xl mx-auto"><Organigram employees={employees} currentUser={currentUser} onSelectEmployee={(emp: any) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id })} /></div>}
+        {state.step === 'organigram' && <div className="p-8 max-w-6xl mx-auto"><Organigram employees={employees} currentUser={currentUser} evaluations={history} onSelectEmployee={(emp: any) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id })} /></div>}
         {state.step === 'form' && state.selectedEmployeeId && (
           <EvaluationForm
             employee={employees.find(e => e.id === state.selectedEmployeeId)!}
@@ -157,15 +157,16 @@ const App: React.FC = () => {
           employees={employees}
           departments={departments}
           criteria={globalCriteria}
+          evaluations={history}
           onClose={() => setIsAdminOpen(false)}
-          onSave={async (emp, dept, crit) => {
+          onSave={async (emp, dept, crit, evals) => {
             try {
               setIsSaving(true);
               const settings = crit ? [{ key: 'evaluation_criteria', value: crit }] : [];
               await fetch('/api/data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ employees: emp, departments: dept, evaluations: history, settings }),
+                body: JSON.stringify({ employees: emp, departments: dept, evaluations: evals, settings }),
               });
               await fetchData();
             } catch (e) {
