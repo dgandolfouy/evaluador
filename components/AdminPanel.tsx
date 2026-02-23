@@ -20,6 +20,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
   const [newDeptName, setNewDeptName] = useState('');
   const formRef = useRef<HTMLDivElement>(null);
 
+  const resetForm = () => {
+    setNewEmp({ name: '', department: localDepartments[0] || '', jobTitle: '', reportsTo: '', additionalRoles: [] });
+    setEditingId(null);
+  };
+
   const handleSaveEmployee = () => {
     if (!newEmp.name || !newEmp.jobTitle) return alert("Faltan datos obligatorios");
     const updated = editingId 
@@ -27,13 +32,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
       : [...localEmployees, { ...newEmp, id: Date.now().toString(), averageScore: 0 } as Employee];
     setLocalEmployees(updated);
     onSave(updated, localDepartments);
-    setEditingId(null);
-    setNewEmp({ name: '', department: localDepartments[0] || '', jobTitle: '', reportsTo: '', additionalRoles: [] });
+    resetForm();
   };
 
   const handleAddDept = () => {
     if (!newDeptName.trim()) return;
-    if (localDepartments.includes(newDeptName.trim())) return alert("El departamento ya existe");
+    if (localDepartments.includes(newDeptName.trim())) return alert("Ya existe");
     const updatedDepts = [...localDepartments, newDeptName.trim()];
     setLocalDepartments(updatedDepts);
     onSave(localEmployees, updatedDepts);
@@ -41,39 +45,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
   };
 
   const handleDeleteDept = (dept: string) => {
-    if (localEmployees.some(e => e.department === dept)) {
-      return alert("No podés borrar un departamento que tiene gente asignada.");
-    }
-    if (confirm(`¿Borrar departamento ${dept}?`)) {
+    if (localEmployees.some(e => e.department === dept)) return alert("El departamento tiene gente asignada");
+    if (confirm(`¿Borrar ${dept}?`)) {
       const updatedDepts = localDepartments.filter(d => d !== dept);
       setLocalDepartments(updatedDepts);
       onSave(localEmployees, updatedDepts);
     }
   };
 
+  const updateRole = (index: number, field: string, value: string) => {
+    const roles = [...(newEmp.additionalRoles || [])];
+    roles[index] = { ...roles[index], [field]: value };
+    setNewEmp({ ...newEmp, additionalRoles: roles });
+  };
+
   return (
     <div className="fixed inset-0 bg-slate-950 z-[100] flex flex-col overflow-hidden">
-      {/* HEADER */}
       <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
         <div className="flex items-center gap-2">
           <Settings className="text-orange-500 w-5 h-5" />
-          <h2 className="text-sm font-black text-white uppercase tracking-tighter">Configuración RR</h2>
+          <h2 className="text-sm font-black text-white uppercase">Configuración RR</h2>
         </div>
         <button onClick={onClose} className="p-2 bg-slate-800 rounded-xl text-white"><X size={20}/></button>
       </div>
 
-      {/* TABS RESPONSIVAS */}
       <div className="flex bg-slate-900 border-b border-slate-800 shrink-0">
-        <button onClick={() => setActiveTab('employees')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'employees' ? 'border-orange-500 text-white bg-orange-500/5' : 'border-transparent text-slate-500'}`}>Colaboradores</button>
-        <button onClick={() => setActiveTab('departments')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'departments' ? 'border-orange-500 text-white bg-orange-500/5' : 'border-transparent text-slate-500'}`}>Departamentos</button>
+        <button onClick={() => setActiveTab('employees')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'employees' ? 'border-orange-500 text-white bg-orange-500/5' : 'border-transparent text-slate-500'}`}>Colaboradores</button>
+        <button onClick={() => setActiveTab('departments')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'departments' ? 'border-orange-500 text-white bg-orange-500/5' : 'border-transparent text-slate-500'}`}>Departamentos</button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32 bg-slate-950">
-        
         {activeTab === 'employees' ? (
-          <>
-            {/* FORMULARIO EMPLEADOS */}
-            <div ref={formRef} className={`p-5 rounded-[2rem] border ${editingId ? 'bg-amber-500/5 border-amber-500/30' : 'bg-slate-900 border-slate-800'}`}>
+          <div className="space-y-6">
+            <div ref={formRef} className={`p-5 rounded-3xl border ${editingId ? 'bg-amber-500/5 border-amber-500/30' : 'bg-slate-900 border-slate-800'}`}>
               <div className="space-y-4">
                 <input placeholder="Nombre" value={newEmp.name} onChange={e => setNewEmp({...newEmp, name: e.target.value})} className="w-full bg-slate-800 p-3 rounded-2xl text-white text-sm border border-slate-700 outline-none" />
                 <input placeholder="Puesto Principal" value={newEmp.jobTitle} onChange={e => setNewEmp({...newEmp, jobTitle: e.target.value})} className="w-full bg-slate-800 p-3 rounded-2xl text-white text-sm border border-slate-700 outline-none" />
@@ -88,7 +92,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
                 </div>
               </div>
 
-              {/* CARGOS ADICIONALES */}
               <div className="mt-6 space-y-4">
                 <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                   <span className="text-[10px] font-black text-slate-500 uppercase">Funciones Extra</span>
@@ -96,24 +99,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
                 </div>
                 {(newEmp.additionalRoles || []).map((role, idx) => (
                   <div key={idx} className="p-4 bg-slate-800/50 rounded-2xl border border-slate-700 relative space-y-3">
-                    <input placeholder="Puesto" value={role.jobTitle} onChange={e => {
-                      const roles = [...(newEmp.additionalRoles || [])];
-                      roles[idx].jobTitle = e.target.value;
-                      setNewEmp({...newEmp, additionalRoles: roles});
-                    }} className="w-full bg-slate-900 p-2 rounded-xl text-white text-xs border border-slate-800" />
+                    <input placeholder="Puesto" value={role.jobTitle} onChange={e => updateRole(idx, 'jobTitle', e.target.value)} className="w-full bg-slate-900 p-3 rounded-xl text-white text-xs border border-slate-800" />
                     <div className="grid grid-cols-2 gap-2">
-                      <select value={role.department} onChange={e => {
-                        const roles = [...(newEmp.additionalRoles || [])];
-                        roles[idx].department = e.target.value;
-                        setNewEmp({...newEmp, additionalRoles: roles});
-                      }} className="bg-slate-900 p-2 rounded-xl text-white text-[10px] border border-slate-800">
+                      <select value={role.department} onChange={e => updateRole(idx, 'department', e.target.value)} className="bg-slate-900 p-3 rounded-xl text-white text-[10px] border border-slate-800">
                         {localDepartments.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
-                      <select value={role.reportsTo} onChange={e => {
-                        const roles = [...(newEmp.additionalRoles || [])];
-                        roles[idx].reportsTo = e.target.value;
-                        setNewEmp({...newEmp, additionalRoles: roles});
-                      }} className="bg-slate-900 p-2 rounded-xl text-white text-[10px] border border-slate-800">
+                      <select value={role.reportsTo} onChange={e => updateRole(idx, 'reportsTo', e.target.value)} className="bg-slate-900 p-3 rounded-xl text-white text-[10px] border border-slate-800">
                         <option value="">Superior</option>
                         {localEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                       </select>
@@ -122,16 +113,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
                   </div>
                 ))}
               </div>
-
-              <button onClick={handleSaveEmployee} className="w-full bg-orange-600 text-white py-4 rounded-2xl mt-6 text-xs font-black uppercase shadow-lg shadow-orange-900/20 flex items-center justify-center gap-2">
+              <button onClick={handleSaveEmployee} className="w-full bg-orange-600 text-white py-4 rounded-2xl mt-6 text-xs font-black uppercase shadow-lg shadow-orange-900/20">
                  {editingId ? 'Confirmar Cambios' : 'Registrar Colaborador'}
               </button>
             </div>
 
-            {/* LISTADO EMPLEADOS */}
-            <div className="space-y-3 mt-8">
+            <div className="space-y-3">
               {localEmployees.map(emp => (
-                <div key={emp.id} className="bg-slate-900 p-4 rounded-3xl border border-slate-800 flex justify-between items-center">
+                <div key={emp.id} className="bg-slate-900 p-4 rounded-3xl border border-slate-800 flex justify-between items-center shadow-sm">
                   <div className="min-w-0 flex-1">
                     <div className="font-black text-white text-sm truncate uppercase tracking-tighter">{emp.name}</div>
                     <div className="text-[10px] text-slate-500 font-bold">{emp.jobTitle}</div>
@@ -143,50 +132,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
                 </div>
               ))}
             </div>
-          </>
+          </div>
         ) : (
-          /* PESTAÑA DE DEPARTAMENTOS (RESTAURADA) */
           <div className="space-y-6 animate-fade-in">
             <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl">
               <p className="text-[10px] font-black text-slate-500 uppercase mb-4 tracking-widest">Añadir Departamento</p>
               <div className="flex flex-col gap-3">
-                <input placeholder="Ej: Control de Calidad" value={newDeptName} onChange={e => setNewDeptName(e.target.value)} className="w-full bg-slate-800 p-4 rounded-2xl text-white text-sm border border-slate-700 outline-none" />
+                <input placeholder="Ej: Producción" value={newDeptName} onChange={e => setNewDeptName(e.target.value)} className="w-full bg-slate-800 p-4 rounded-2xl text-white text-sm border border-slate-700 outline-none" />
                 <button onClick={handleAddDept} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-orange-900/20 flex items-center justify-center gap-2">
                   <Plus size={18}/> Agregar Departamento
                 </button>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Departamentos Activos</p>
-              <div className="grid grid-cols-1 gap-3">
-                {localDepartments.map(dept => (
-                  <div key={dept} className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex justify-between items-center group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-orange-500">
-                        <Building2 size={20} />
-                      </div>
-                      <span className="text-white font-black text-sm uppercase tracking-tight">{dept}</span>
-                    </div>
-                    <button onClick={() => handleDeleteDept(dept)} className="p-3 bg-red-950/20 text-red-500 rounded-2xl opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all">
-                      <Trash2 size={18} />
-                    </button>
+            <div className="grid grid-cols-1 gap-3">
+              {localDepartments.map(dept => (
+                <div key={dept} className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex justify-between items-center group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-orange-500"><Building2 size={20} /></div>
+                    <span className="text-white font-black text-sm uppercase tracking-tight">{dept}</span>
                   </div>
-                ))}
-              </div>
+                  <button onClick={() => handleDeleteDept(dept)} className="p-3 bg-red-950/20 text-red-500 rounded-2xl"><Trash2 size={18} /></button>
+                </div>
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* FOOTER FIJO ABAJO */}
       <div className="p-4 border-t border-slate-800 bg-slate-900 sticky bottom-0 z-[110] shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
-        <button onClick={() => { onSave(localEmployees, localDepartments); onClose(); }} className="w-full bg-slate-100 text-slate-950 py-4 rounded-2xl font-black uppercase text-xs shadow-xl flex items-center justify-center gap-2">
+        <button onClick={() => { onSave(localEmployees, localDepartments); onClose(); }} className="w-full bg-slate-100 text-slate-950 py-4 rounded-2xl font-black uppercase text-xs shadow-xl">
            Finalizar y Cerrar
         </button>
       </div>
     </div>
   );
 };
-
-export default AdminPanel;
