@@ -37,7 +37,21 @@ const App: React.FC = () => {
         throw new Error(errorData.details || "Server error");
       }
       const data = await response.json();
-      if (data.employees) setEmployees(data.employees);
+
+      let loadedEmployees = data.employees || [];
+      // Bootstrap logic: If DB is empty, provide a way for Admin to enter
+      if (loadedEmployees.length === 0) {
+        console.warn("Database empty. Adding bootstrap admin.");
+        loadedEmployees = [{
+          id: 'admin_bootstrap',
+          name: 'DANIEL GANDOLFO',
+          department: 'DIRECCIÓN',
+          jobtitle: 'GERENTE GENERAL',
+          reportsto: ''
+        }];
+      }
+
+      setEmployees(loadedEmployees);
       if (data.departments) setDepartments(data.departments.map((d: any) => typeof d === 'string' ? d : d.name));
       if (data.evaluations) setHistory(data.evaluations);
 
