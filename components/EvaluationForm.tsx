@@ -1,88 +1,124 @@
-import React, { useState } from 'react';
-import { Employee, Criterion } from '../types';
-import { CheckCircle2, ShieldCheck, Plus, Trash2 } from 'lucide-react';
-import { RangeSlider } from './RangeSlider';
+import React, { useState, useEffect } from 'react';
+import { EvaluationState, Employee, Criterion, SavedEvaluation, Department } from './types';
+import { Dashboard } from './components/Dashboard';
+import { Organigram } from './components/Organigram';
+import { EvaluationForm } from './components/EvaluationForm';
+import { AnalysisView } from './components/AnalysisView';
+import { Login } from './components/Login';
+import { Logo } from './components/Logo';
+import { INITIAL_EMPLOYEES, DEPARTMENTS } from './constants';
+import { LayoutDashboard, Users, BarChart3, LogOut, Loader2 } from 'lucide-react';
 
-export const EvaluationForm = ({ employee, initialCriteria, currentUser, onComplete, onCancel }: any) => {
-  const [criteria, setCriteria] = useState<Criterion[]>(initialCriteria.map((c: any) => ({ ...c, feedback: '' })));
-  const canEditStructure = currentUser?.name.includes("Daniel Gandolfo") || currentUser?.name.includes("Cristina");
+const App: React.FC = () => {
+  const [history, setHistory] = useState<SavedEvaluation[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const [state, setState] = useState<EvaluationState>({
+    step: 'dashboard',
+    selectedEmployeeId: null,
+    currentCriteria: [],
+    analysis: null,
+  });
+
+  const fetchData = async () => {
+    try {
+      const response = await fetch('/api/data');
+      const data = await response.json();
+      if (data.employees) {
+        setEmployees(data.employees);
+        setHistory(data.evaluations || []);
+      }
+    } catch (e) {
+      setEmployees(INITIAL_EMPLOYEES);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const defaultCriteria = [
+    { id: '1', name: 'Productividad', description: 'Capacidad para cumplir con volúmenes y tiempos.', score: 5 },
+    { id: '2', name: 'Calidad del Trabajo', description: 'Cumplimiento de estándares ISO 9001.', score: 5 },
+    { id: '3', name: 'Seguridad e Higiene', description: 'Uso de EPP y orden del puesto.', score: 5 },
+    { id: '4', name: 'Trabajo en Equipo', description: 'Colaboración y actitud grupal.', score: 5 }
+  ];
+
+  // VISIBILIDAD TOTAL: Pero solo evalúa subordinados
+  const handleSelectEmployee = (emp: Employee) => {
+    if (emp.id === currentUser?.id) return alert("No puedes evaluarte a ti mismo.");
+    if (emp.reportsTo === currentUser?.id) {
+      setState({ ...state, step: 'form', selectedEmployeeId: emp.id, currentCriteria: defaultCriteria });
+    } else {
+      alert(`Consulta: ${emp.name} no depende de ti directamente.`);
+    }
+  };
+
+  if (!isLoggedIn) return <Login employees={employees} onLogin={(u) => { setCurrentUser(u); setIsLoggedIn(true); }} />;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-10 space-y-12 animate-fade-in pb-40">
-      {/* Cabezal de Ficha */}
-      <div className="bg-slate-900 p-10 rounded-[3rem] border border-slate-800 shadow-2xl flex justify-between items-center relative overflow-hidden">
-        <div className="relative z-10">
-          <p className="text-orange-500 font-black text-4xl uppercase tracking-tighter leading-none mb-2">{employee.name}</p>
-          <p className="text-white/80 text-sm font-bold uppercase tracking-[0.2em]">{employee.jobTitle}</p>
+    <div className="min-h-screen bg-slate-950 flex flex-col text-white font-sans">
+      <header className="bg-slate-900 border-b border-slate-800 h-28 flex items-center px-12 justify-between sticky top-0 z-50">
+        <Logo className="w-44" />
+        <div className="flex items-center gap-6">
+          <div className="text-right hidden sm:block">
+            <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{currentUser?.jobTitle}</p>
+            <p className="text-sm font-bold">{currentUser?.name}</p>
+          </div>
+          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 hover:bg-red-950/40 transition-all"><LogOut size={22} /></button>
         </div>
-        {canEditStructure && (
-          <div className="bg-orange-600/20 px-4 py-2 rounded-full border border-orange-600/40 flex items-center gap-2">
-            <ShieldCheck size={18} className="text-orange-500" />
-            <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Gestión Calidad</span>
+      </header>
+
+      {/* NAVEGACIÓN COMPLETA PARA LOS 4 LÍDERES */}
+      <nav className="flex justify-center mt-6 gap-4 px-4">
+        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'dashboard' ? 'bg-orange-600 text-white shadow-lg' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><LayoutDashboard size={18}/> Panel</button>
+        <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'organigram' ? 'bg-orange-600 text-white shadow-lg' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><Users size={18}/> Organigrama</button>
+        <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'stats' ? 'bg-orange-600 text-white shadow-lg' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><BarChart3 size={18}/> Estadísticas</button>
+      </nav>
+
+      <main className="flex-1 pb-20">
+        {state.step === 'dashboard' && (
+          <Dashboard 
+            evaluations={history} employees={employees} currentUser={currentUser} 
+            onQuickStart={(id: string) => setState({ ...state, step: 'form', selectedEmployeeId: id, currentCriteria: defaultCriteria })}
+            onView={(ev: any) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })}
+          />
+        )}
+        {state.step === 'organigram' && (
+          <div className="p-8 max-w-6xl mx-auto">
+            <h2 className="text-2xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4 tracking-tighter">Organigrama RR Etiquetas</h2>
+            <Organigram employees={employees} onSelectEmployee={handleSelectEmployee} />
           </div>
         )}
-      </div>
+        {state.step === 'form' && state.selectedEmployeeId && (
+          <EvaluationForm 
+            employee={employees.find(e => e.id === state.selectedEmployeeId)!} 
+            initialCriteria={state.currentCriteria} 
+            currentUser={currentUser}
+            onComplete={async (criteria: any, analysis: any) => {
+              setIsSaving(true);
+              const newEval = { id: Date.now().toString(), employeeId: state.selectedEmployeeId!, date: new Date().toISOString(), criteria, analysis, evaluatorId: currentUser?.id || '' };
+              await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employees, evaluations: [newEval, ...history] }) });
+              await fetchData();
+              setState({...state, step: 'dashboard'});
+              setIsSaving(false);
+            }}
+            onCancel={() => setState({...state, step: 'dashboard'})}
+          />
+        )}
+        {state.step === 'report' && <AnalysisView employee={employees.find(e => e.id === state.selectedEmployeeId)!} criteria={state.currentCriteria} analysis={state.analysis} onReset={() => setState({...state, step: 'dashboard'})} />}
+        {state.step === 'stats' && <div className="p-20 text-center opacity-30 font-black uppercase tracking-widest text-2xl text-white">Módulo de Estadísticas ISO 9001</div>}
+      </main>
 
-      <div className="space-y-16">
-        {criteria.map((c, idx) => (
-          <div key={c.id} className="bg-slate-900 p-10 sm:p-14 rounded-[4rem] border border-slate-800 shadow-2xl relative">
-            {/* Rayita naranja decorativa lateral */}
-            <div className="absolute left-0 top-1/4 bottom-1/4 w-1.5 bg-orange-600 rounded-r-full shadow-[0_0_15px_rgba(234,88,12,0.5)]"></div>
-            
-            <div className="mb-12 border-b border-slate-800 pb-8">
-              <h4 className="text-2xl font-black text-white uppercase tracking-widest mb-4 leading-tight">{c.name}</h4>
-              <p className="text-slate-400 text-base leading-relaxed max-w-2xl">{c.description}</p>
-            </div>
-            
-            <div className="space-y-14">
-              {/* Selector Estirado y Texto Redistribuido */}
-              <div className="bg-slate-950 p-10 rounded-[3rem] border border-white/5 shadow-inner">
-                <div className="flex justify-between items-end mb-10">
-                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Evaluación de Desempeño</p>
-                   <p className="text-6xl font-black text-white tracking-tighter leading-none">{c.score}<span className="text-orange-600 text-2xl font-bold ml-1">/10</span></p>
-                </div>
-                
-                <div className="px-2">
-                  <RangeSlider value={c.score} onChange={(v) => {
-                    const newC = [...criteria];
-                    newC[idx].score = v;
-                    setCriteria(newC);
-                  }} />
-                  <div className="flex justify-between mt-6 text-[10px] font-black text-slate-700 uppercase tracking-widest px-1">
-                    <span>Deficiente</span>
-                    <span>Excelente</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Área de Comentarios Blindada */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center px-4">
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Evidencia ISO 9001 (Hechos Observados)</span>
-                  <span className="text-[10px] font-bold text-slate-800">{c.feedback?.length || 0} / 500</span>
-                </div>
-                <textarea 
-                  value={c.feedback || ''}
-                  onChange={(e) => {
-                    const newC = [...criteria];
-                    newC[idx].feedback = e.target.value;
-                    setCriteria(newC);
-                  }}
-                  placeholder="Escriba aquí los datos técnicos o situaciones observadas..."
-                  className="w-full h-44 bg-slate-950 border border-slate-800 rounded-[2.5rem] p-8 text-white text-lg font-medium outline-none focus:border-orange-600/50 transition-all resize-none shadow-2xl placeholder:text-slate-800"
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-6 pt-10">
-        <button onClick={onCancel} className="flex-1 bg-slate-900 text-slate-500 py-8 rounded-[2.5rem] font-black uppercase text-xs border border-slate-800 hover:text-white transition-all">Cancelar Evaluación</button>
-        <button onClick={() => onComplete(criteria)} className="flex-[2] bg-orange-600 text-white py-8 rounded-[2.5rem] font-black uppercase text-xs shadow-2xl shadow-orange-900/40 flex items-center justify-center gap-4 hover:bg-orange-500 hover:-translate-y-1 transition-all">
-          <CheckCircle2 size={24} /> Finalizar y Guardar Informe
-        </button>
-      </div>
+      {isSaving && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center gap-4">
+          <Loader2 className="animate-spin text-orange-500" size={48} />
+          <p className="font-black uppercase text-xs tracking-widest">Guardando Evaluación...</p>
+        </div>
+      )}
     </div>
   );
 };
+
+export default App;
