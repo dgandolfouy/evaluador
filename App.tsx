@@ -24,7 +24,10 @@ const App: React.FC = () => {
   const fetchData = async () => {
     try {
       const response = await fetch('/api/data');
-      if (!response.ok) throw new Error("Server error");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || "Server error");
+      }
       const data = await response.json();
       if (data.employees) setEmployees(data.employees);
       if (data.evaluations) setHistory(data.evaluations);
