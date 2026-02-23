@@ -17,7 +17,7 @@ export const Login: React.FC<LoginProps> = ({ employees, onLogin }) => {
 
   const filteredEmployees = useMemo(() => {
     if (!searchTerm) return [];
-    return employees.filter(e => 
+    return employees.filter(e =>
       e.name.toLowerCase().includes(searchTerm.toLowerCase())
     ).slice(0, 5);
   }, [employees, searchTerm]);
@@ -41,7 +41,7 @@ export const Login: React.FC<LoginProps> = ({ employees, onLogin }) => {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <div className="bg-slate-900 w-full max-w-md p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-800 relative overflow-hidden">
-        
+
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
@@ -77,7 +77,7 @@ export const Login: React.FC<LoginProps> = ({ employees, onLogin }) => {
                   className="w-full pl-12 pr-4 py-3.5 sm:py-4 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-white placeholder:text-slate-600 transition-all font-medium text-sm sm:text-base"
                 />
               </div>
-              
+
               {showDropdown && searchTerm && !selectedEmployee && filteredEmployees.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
                   {filteredEmployees.map(emp => (
@@ -92,7 +92,7 @@ export const Login: React.FC<LoginProps> = ({ employees, onLogin }) => {
                       </div>
                       <div>
                         <p className="text-sm font-bold">{emp.name}</p>
-                        <p className="text-[10px] text-slate-500 uppercase">{emp.jobTitle}</p>
+                        <p className="text-[10px] text-slate-500 uppercase">{emp.jobtitle || emp.jobTitle}</p>
                       </div>
                     </button>
                   ))}
