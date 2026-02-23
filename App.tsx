@@ -47,11 +47,6 @@ const App: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // REGLA DE JERARQUÍA (Lo único nuevo que dejamos)
-  const getSubordinates = (managerId: string) => {
-    return employees.filter(emp => emp.reportsTo === managerId);
-  };
-
   const defaultCriteria: Criterion[] = [
     { id: '1', name: 'Productividad', description: 'Capacidad para cumplir con volúmenes y tiempos.', score: 5, category: 'Producción' },
     { id: '2', name: 'Calidad del Trabajo', description: 'Precisión técnica y estándares ISO 9001.', score: 5, category: 'Calidad' },
@@ -60,10 +55,18 @@ const App: React.FC = () => {
   ];
 
   const handleSelectEmployee = (employee: Employee) => {
+    // REGLA DE SEGURIDAD: 
+    // Si el empleado seleccionado NO reporta al usuario actual y NO es un subordinado indirecto...
     if (employee.id === currentUser?.id) {
       alert("No puedes realizar tu propia evaluación.");
       return;
     }
+
+    if (employee.reportsTo !== currentUser?.id) {
+      alert(`No tienes permisos para evaluar a ${employee.name}. Solo puedes evaluar a tu personal directo.`);
+      return;
+    }
+
     setState({ ...state, step: 'form', selectedEmployeeId: employee.id, currentCriteria: defaultCriteria });
   };
 
@@ -84,7 +87,6 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col text-slate-50 font-sans">
       
-      {/* HEADER RESTAURADO CON AIRE */}
       <header className="bg-slate-900 border-b border-slate-800 h-28 flex items-center px-6 sm:px-12 justify-between sticky top-0 z-50">
         <Logo className="w-44" />
         <div className="flex items-center gap-4">
@@ -92,7 +94,7 @@ const App: React.FC = () => {
             <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{currentUser?.jobTitle}</p>
             <p className="text-xs font-bold text-white uppercase">{currentUser?.name}</p>
           </div>
-          <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500 hover:bg-slate-700 transition-all">
+          <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500 shadow-lg hover:bg-slate-700 transition-all">
             <Settings size={22} />
           </button>
           <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 hover:bg-red-900/30 transition-all">
@@ -101,7 +103,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* NAVEGACIÓN SUPERIOR RESTAURADA */}
       <nav className="hidden lg:flex max-w-7xl mx-auto mt-6 gap-3 bg-slate-900/50 p-2 rounded-3xl border border-slate-800">
         <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'dashboard' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}>
           <LayoutDashboard size={18}/> Panel
@@ -129,9 +130,10 @@ const App: React.FC = () => {
             <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-8 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest text-slate-400 hover:text-white transition-all">
               <ArrowLeft size={16}/> Volver
             </button>
-            <h2 className="text-xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4">Personal a mi Cargo</h2>
+            <h2 className="text-xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4">Organigrama de la Empresa</h2>
+            {/* AQUÍ PASAMOS TODOS LOS EMPLEADOS PARA VISIBILIDAD TOTAL */}
             <Organigram 
-              employees={getSubordinates(currentUser?.id || '')} 
+              employees={employees} 
               onSelectEmployee={handleSelectEmployee} 
             />
           </div>
@@ -155,7 +157,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* NAV INFERIOR MOBILE RESTAURADA */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 px-10 py-5 flex justify-between items-center z-[60] shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
         <button onClick={() => setState({ ...state, step: 'dashboard' })} className={state.step === 'dashboard' ? 'text-orange-500' : 'text-slate-500'}><LayoutDashboard size={30} /></button>
         <button onClick={() => setState({ ...state, step: 'organigram' })} className={state.step === 'organigram' ? 'text-orange-500' : 'text-slate-500'}><Users size={30} /></button>
