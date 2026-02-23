@@ -29,8 +29,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       await sql`BEGIN;`;
 
+      // 1. DELETE everything in correct reverse-dependency order
+      if (evaluations) await sql`DELETE FROM evaluations;`;
+      // We only delete employees/departments if we are actually sending new ones
+      if (employees) await sql`DELETE FROM employees;`;
+      if (departments) await sql`DELETE FROM departments;`;
+      if (settings) await sql`DELETE FROM settings;`;
+
+      // 2. INSERT everything in correct dependency order
+      if (departments) {
+        for (const dept of departments) {
+          const dName = typeof dept === 'string' ? dept : dept.name;
+          if (dName) await sql`INSERT INTO departments (name) VALUES (${dName});`;
+        }
+      }
+
+      if (employees) {
+        for (const emp of employees) {
+          await sql`
+            INSERT INTO employees (id, name, department, jobtitle, reportsto, additionalroles, averagescore)
+            VALUES (${emp.id}, ${emp.name}, ${emp.department}, ${emp.jobtitle || emp.jobTitle || ''}, ${emp.reportsto || emp.reportsTo || ''}, ${JSON.stringify(emp.additionalroles || emp.additionalRoles || [])}, ${emp.averagescore || emp.averageScore || 0});
+          `;
+        }
+      }
+
       if (evaluations) {
-        await sql`DELETE FROM evaluations;`;
         for (const ev of evaluations) {
           await sql`
             INSERT INTO evaluations (id, employeeid, evaluatorid, date, criteria, finalscore, analysis)
@@ -47,26 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      if (departments) {
-        await sql`DELETE FROM departments;`;
-        for (const dept of departments) {
-          const dName = typeof dept === 'string' ? dept : dept.name;
-          if (dName) await sql`INSERT INTO departments (name) VALUES (${dName});`;
-        }
-      }
-
-      if (employees) {
-        await sql`DELETE FROM employees;`;
-        for (const emp of employees) {
-          await sql`
-            INSERT INTO employees (id, name, department, jobtitle, reportsto, additionalroles, averagescore)
-            VALUES (${emp.id}, ${emp.name}, ${emp.department}, ${emp.jobtitle || emp.jobTitle || ''}, ${emp.reportsto || emp.reportsTo || ''}, ${JSON.stringify(emp.additionalroles || emp.additionalRoles || [])}, ${emp.averagescore || emp.averageScore || 0});
-          `;
-        }
-      }
-
       if (settings) {
-        await sql`DELETE FROM settings;`;
         for (const s of settings) {
           await sql`INSERT INTO settings (key, value) VALUES (${s.key}, ${typeof s.value === 'string' ? s.value : JSON.stringify(s.value)});`;
         }
