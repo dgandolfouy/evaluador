@@ -1,24 +1,26 @@
 import React, { useState, useRef } from 'react';
-import { Employee, Department } from '../types';
+import { Employee, Criterion } from '../types';
 import { Plus, Trash2, Building2, Settings, Save, X, Edit2 } from 'lucide-react';
 
 interface AdminPanelProps {
   employees: Employee[];
-  departments: Department[];
+  departments: string[];
+  criteria: Criterion[];
   onClose: () => void;
-  onSave: (employees: Employee[], departments: Department[]) => void;
+  onSave: (employees: Employee[], departments: string[], criteria: Criterion[]) => void;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, onClose, onSave }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, criteria, onClose, onSave }) => {
   const [localEmployees, setLocalEmployees] = useState(employees);
   const [localDepartments, setLocalDepartments] = useState(departments || []);
-  const [activeTab, setActiveTab] = useState<'employees' | 'departments'>('employees');
+  const [localCriteria, setLocalCriteria] = useState<Criterion[]>(criteria || []);
+  const [activeTab, setActiveTab] = useState<'employees' | 'departments' | 'criteria'>('employees');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDeptName, setEditingDeptName] = useState<string | null>(null);
   const [editDeptValue, setEditDeptValue] = useState('');
   const [newEmp, setNewEmp] = useState<Partial<Employee>>({
     name: '',
-    department: (departments && departments.length > 0) ? departments[0] : '',
+    department: (localDepartments && localDepartments.length > 0) ? localDepartments[0] : '',
     jobtitle: '',
     reportsto: '',
     additionalroles: []
@@ -29,7 +31,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
   const resetForm = () => {
     setNewEmp({
       name: '',
-      department: localDepartments[0] || '',
+      department: (localDepartments && localDepartments.length > 0) ? localDepartments[0] : '',
       jobtitle: '',
       reportsto: '',
       additionalroles: []
@@ -41,11 +43,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
     const jt = newEmp.jobtitle || newEmp.jobTitle;
     if (!newEmp.name || !jt) return alert("Faltan datos");
 
-    // Standardize to lowercase before saving to state/DB
     const normalizedEmp: Employee = {
       id: editingId || Date.now().toString(),
       name: newEmp.name,
-      department: newEmp.department || localDepartments[0],
+      department: newEmp.department || (localDepartments && localDepartments.length > 0 ? localDepartments[0] : ''),
       jobtitle: jt,
       reportsto: newEmp.reportsto || newEmp.reportsTo || '',
       additionalroles: newEmp.additionalroles || newEmp.additionalRoles || [],
@@ -57,7 +58,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
       : [...localEmployees, normalizedEmp];
 
     setLocalEmployees(updated);
-    onSave(updated, localDepartments);
+    // Note: localCriteria is passed here to ensure we don't lose them
+    onSave(updated, localDepartments, localCriteria);
     resetForm();
   };
 
@@ -76,7 +78,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
     }));
     setLocalDepartments(updatedDepts);
     setLocalEmployees(updatedEmps);
-    onSave(updatedEmps, updatedDepts);
+    onSave(updatedEmps, updatedDepts, localCriteria);
     setEditingDeptName(null);
   };
 
@@ -89,7 +91,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
 
       <div className="flex bg-slate-900 border-b border-slate-800 shrink-0">
         <button onClick={() => setActiveTab('employees')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'employees' ? 'border-orange-500 text-white bg-orange-500/5' : 'border-transparent text-slate-500'}`}>Colaboradores</button>
-        <button onClick={() => setActiveTab('departments')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'departments' ? 'border-orange-500 text-white bg-orange-500/5' : 'border-transparent text-slate-500'}`}>Departamentos</button>
+        <button onClick={() => setActiveTab('departments')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'departments' ? 'border-orange-500 text-white bg-orange-500/5' : 'border-transparent text-slate-500'}`}>Áreas</button>
+        <button onClick={() => setActiveTab('criteria')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'criteria' ? 'border-orange-500 text-white bg-orange-500/5' : 'border-transparent text-slate-500'}`}>Criterios</button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32 bg-slate-950">
@@ -149,19 +152,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
                   </div>
                   <div className="flex gap-2 ml-4">
                     <button onClick={() => { setNewEmp({ ...emp }); setEditingId(emp.id); formRef.current?.scrollIntoView({ behavior: 'smooth' }); }} className="p-3 bg-slate-800 text-orange-500 rounded-2xl hover:bg-slate-700 transition-all"><Edit2 size={18} /></button>
-                    <button onClick={() => { if (confirm('¿Borrar colaborador permanentemente?')) { const u = localEmployees.filter(e => e.id !== emp.id); setLocalEmployees(u); onSave(u, localDepartments); } }} className="p-3 bg-red-950/20 text-red-500 rounded-2xl hover:bg-red-900/40 transition-all"><Trash2 size={18} /></button>
+                    <button onClick={() => { if (confirm('¿Borrar colaborador permanentemente?')) { const u = localEmployees.filter(e => e.id !== emp.id); setLocalEmployees(u); onSave(u, localDepartments, localCriteria); } }} className="p-3 bg-red-950/20 text-red-500 rounded-2xl hover:bg-red-900/40 transition-all"><Trash2 size={18} /></button>
                   </div>
                 </div>
               ))}
             </div>
           </>
-        ) : (
+        ) : activeTab === 'departments' ? (
           <div className="space-y-6 animate-fade-in">
             <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl">
-              <p className="text-[10px] font-black text-slate-500 uppercase mb-4 tracking-widest">Añadir Departamento</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase mb-4 tracking-widest">Añadir Nueva Área</p>
               <div className="flex flex-col gap-3">
                 <input placeholder="Nombre del área" value={newDeptName} onChange={e => setNewDeptName(e.target.value)} className="w-full bg-slate-800 p-4 rounded-2xl text-white text-sm border border-slate-700 outline-none focus:border-orange-500/50" />
-                <button onClick={() => { if (!newDeptName.trim()) return; const u = [...localDepartments, newDeptName.trim()]; setLocalDepartments(u); onSave(localEmployees, u); setNewDeptName(''); }} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-orange-900/20 flex items-center justify-center gap-2 hover:bg-orange-500 transition-all">
+                <button onClick={() => { if (!newDeptName.trim()) return; const u = [...localDepartments, newDeptName.trim()]; setLocalDepartments(u); onSave(localEmployees, u, localCriteria); setNewDeptName(''); }} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-orange-900/20 flex items-center justify-center gap-2 hover:bg-orange-500 transition-all">
                   <Plus size={18} /> Agregar Área
                 </button>
               </div>
@@ -175,18 +178,71 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
                   </div>
                   <div className="flex gap-2 ml-4">
                     {editingDeptName === dept ? <button onClick={handleSaveDeptEdit} className="p-3 bg-emerald-950/20 text-emerald-500 rounded-2xl"><Save size={18} /></button> : <button onClick={() => { setEditingDeptName(dept); setEditDeptValue(dept); }} className="p-3 bg-slate-800 text-orange-500 rounded-2xl hover:bg-slate-700 transition-all"><Edit2 size={18} /></button>}
-                    <button onClick={() => { if (!localEmployees.some(e => e.department === dept) && confirm(`¿Borrar ${dept}?`)) { const u = localDepartments.filter(d => d !== dept); setLocalDepartments(u); onSave(localEmployees, u); } }} className="p-3 bg-red-950/20 text-red-500 rounded-2xl hover:bg-red-900/40 transition-all"><Trash2 size={18} /></button>
+                    <button onClick={() => { if (!localEmployees.some(e => e.department === dept) && confirm(`¿Borrar ${dept}?`)) { const u = localDepartments.filter(d => d !== dept); setLocalDepartments(u); onSave(localEmployees, u, localCriteria); } }} className="p-3 bg-red-950/20 text-red-500 rounded-2xl hover:bg-red-900/40 transition-all"><Trash2 size={18} /></button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+        ) : (
+          <div className="space-y-4 animate-fade-in">
+            <div className="bg-orange-500/10 p-4 rounded-2xl border border-orange-500/20 mb-4">
+              <p className="text-[10px] font-bold text-orange-200 uppercase leading-tight">
+                Nota: Estos son los 5 pilares que aparecerán en todas las evaluaciones de RR Etiquetas.
+              </p>
+            </div>
+            {localCriteria.map((c, idx) => (
+              <div key={idx} className="bg-slate-900 p-5 rounded-[1.5rem] border border-slate-800 space-y-4 shadow-lg">
+                <div className="flex flex-col gap-3">
+                  <div className="flex gap-2">
+                    <span className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-orange-500 border border-slate-700">{idx + 1}</span>
+                    <input
+                      value={c.name}
+                      onChange={e => {
+                        const next = [...localCriteria];
+                        next[idx] = { ...next[idx], name: e.target.value };
+                        setLocalCriteria(next);
+                      }}
+                      className="bg-transparent border-b border-slate-800 focus:border-orange-500/50 outline-none font-black text-white uppercase text-sm flex-1 pb-1"
+                      placeholder="Nombre del Criterio"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={c.category}
+                      onChange={e => {
+                        const next = [...localCriteria];
+                        next[idx] = { ...next[idx], category: e.target.value };
+                        setLocalCriteria(next);
+                      }}
+                      className="bg-slate-800 p-2 rounded-xl text-[10px] font-bold text-slate-300 border border-slate-700"
+                    >
+                      {['Desempeño', 'Calidad', 'Competencias Técnicas', 'Competencias Blandas', 'Actitud'].map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <span className="text-[9px] text-slate-600 font-black uppercase flex items-center px-2">ID: {c.id}</span>
+                  </div>
+                  <textarea
+                    value={c.description}
+                    onChange={e => {
+                      const next = [...localCriteria];
+                      next[idx] = { ...next[idx], description: e.target.value };
+                      setLocalCriteria(next);
+                    }}
+                    className="w-full bg-slate-950/50 p-3 rounded-xl text-xs text-slate-400 border border-slate-800 outline-none focus:border-orange-500/30 h-16 resize-none"
+                    placeholder="Descripción detallada de qué se evalúa..."
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
       <div className="p-4 border-t border-slate-800 bg-slate-900 sticky bottom-0 z-[110] shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
-        <button onClick={() => { onSave(localEmployees, localDepartments); onClose(); }} className="w-full bg-slate-100 text-slate-950 py-4 rounded-2xl font-black uppercase text-xs shadow-xl flex items-center justify-center gap-2 hover:bg-white active:scale-95 transition-all">
-          Finalizar Sesión Admin
+        <button onClick={() => { onSave(localEmployees, localDepartments, localCriteria); onClose(); }} className="w-full bg-slate-100 text-slate-950 py-4 rounded-2xl font-black uppercase text-xs shadow-xl flex items-center justify-center gap-2 hover:bg-white active:scale-95 transition-all">
+          Guardar Todo y Finalizar
         </button>
       </div>
     </div>
