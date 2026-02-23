@@ -48,34 +48,16 @@ const App: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const defaultCriteria: Criterion[] = [
+  // CRITERIOS BASE DE RR ETIQUETAS
+  const [globalCriteria, setGlobalCriteria] = useState<Criterion[]>([
     { id: '1', name: 'Productividad', description: 'Capacidad para cumplir con volúmenes y tiempos.', score: 5, category: 'Producción' },
     { id: '2', name: 'Calidad del Trabajo', description: 'Precisión técnica y estándares ISO 9001.', score: 5, category: 'Calidad' },
     { id: '3', name: 'Seguridad e Higiene', description: 'Uso de EPP y orden del puesto.', score: 5, category: 'Normativa' },
     { id: '4', name: 'Trabajo en Equipo', description: 'Actitud y colaboración grupal.', score: 5, category: 'Actitud' }
-  ];
+  ]);
 
-  // Función para iniciar evaluación directa
   const startDirectEvaluation = (employeeId: string) => {
-    setState({
-      ...state,
-      step: 'form',
-      selectedEmployeeId: employeeId,
-      currentCriteria: defaultCriteria
-    });
-  };
-
-  const handleSelectEmployee = (employee: Employee) => {
-    if (employee.id === currentUser?.id) {
-      alert("No puedes realizar tu propia evaluación.");
-      return;
-    }
-    // Verificamos si es subordinado directo para permitir evaluar
-    if (employee.reportsTo === currentUser?.id) {
-        startDirectEvaluation(employee.id);
-    } else {
-        alert(`No tienes permisos para evaluar a ${employee.name}. Solo puedes evaluar a tu personal directo.`);
-    }
+    setState({ ...state, step: 'form', selectedEmployeeId: employeeId, currentCriteria: globalCriteria });
   };
 
   const handleSaveData = async (updatedEmployees: Employee[], updatedDepartments: Department[], updatedHistory: SavedEvaluation[]) => {
@@ -94,41 +76,28 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col text-slate-50 font-sans">
-      
-      <header className="bg-slate-900 border-b border-slate-800 h-28 flex items-center px-6 sm:px-12 justify-between sticky top-0 z-50">
+      <header className="bg-slate-900 border-b border-slate-800 h-28 flex items-center px-12 justify-between sticky top-0 z-50">
         <Logo className="w-44" />
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
             <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{currentUser?.jobTitle}</p>
             <p className="text-xs font-bold text-white uppercase">{currentUser?.name}</p>
           </div>
-          <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500 shadow-lg hover:bg-slate-700 transition-all">
+          <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500 hover:bg-slate-700 transition-all">
             <Settings size={22} />
           </button>
-          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 hover:bg-red-900/30 transition-all">
+          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 transition-all">
             <LogOut size={22} />
           </button>
         </div>
       </header>
-
-      <nav className="hidden lg:flex max-w-7xl mx-auto mt-6 gap-3 bg-slate-900/50 p-2 rounded-3xl border border-slate-800">
-        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'dashboard' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}>
-          <LayoutDashboard size={18}/> Panel
-        </button>
-        <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'organigram' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}>
-          <Users size={18}/> Organigrama
-        </button>
-        <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'stats' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}>
-          <BarChart3 size={18}/> Estadísticas
-        </button>
-      </nav>
 
       <main className="flex-1 pb-24 lg:pb-8">
         {state.step === 'dashboard' && (
           <Dashboard 
             evaluations={history} employees={employees} currentUser={currentUser} 
             onNew={() => setState({ ...state, step: 'organigram' })}
-            onQuickStart={startDirectEvaluation} // Lógica rápida para Pablo
+            onQuickStart={startDirectEvaluation}
             onView={(ev) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })}
             onDelete={fetchData}
           />
@@ -136,11 +105,12 @@ const App: React.FC = () => {
 
         {state.step === 'organigram' && (
           <div className="p-6 max-w-6xl mx-auto">
-            <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-8 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest text-slate-400 hover:text-white transition-all">
-              <ArrowLeft size={16}/> Volver
-            </button>
+            <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-8 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest text-slate-400 hover:text-white transition-all"><ArrowLeft size={16}/> Volver</button>
             <h2 className="text-xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4">Organigrama de la Empresa</h2>
-            <Organigram employees={employees} onSelectEmployee={handleSelectEmployee} />
+            <Organigram employees={employees} onSelectEmployee={(emp) => {
+              if (emp.reportsTo === currentUser?.id) startDirectEvaluation(emp.id);
+              else alert(`No tienes permisos para evaluar a ${emp.name}.`);
+            }} />
           </div>
         )}
 
@@ -148,6 +118,8 @@ const App: React.FC = () => {
           <EvaluationForm 
             employee={employees.find(e => e.id === state.selectedEmployeeId)!}
             initialCriteria={state.currentCriteria}
+            currentUser={currentUser}
+            onUpdateGlobalCriteria={(newCriteria) => setGlobalCriteria(newCriteria)}
             onCancel={() => setState({...state, step: 'dashboard'})}
             onComplete={async (criteria: any, analysis: any) => {
               const newEval = { id: Date.now().toString(), employeeId: state.selectedEmployeeId!, date: new Date().toISOString(), criteria, analysis, evaluatorId: currentUser?.id || '' };
@@ -156,26 +128,15 @@ const App: React.FC = () => {
             }}
           />
         )}
-
-        {state.step === 'stats' && (
-          <div className="p-20 text-center opacity-30 font-black uppercase tracking-widest">Módulo de Estadísticas en Desarrollo</div>
-        )}
       </main>
 
+      {/* NAV MOBILE */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 px-10 py-5 flex justify-between items-center z-[60] shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
         <button onClick={() => setState({ ...state, step: 'dashboard' })} className={state.step === 'dashboard' ? 'text-orange-500' : 'text-slate-500'}><LayoutDashboard size={30} /></button>
         <button onClick={() => setState({ ...state, step: 'organigram' })} className={state.step === 'organigram' ? 'text-orange-500' : 'text-slate-500'}><Users size={30} /></button>
-        <button onClick={() => setState({ ...state, step: 'stats' })} className={state.step === 'stats' ? 'text-orange-500' : 'text-slate-500'}><BarChart3 size={30} /></button>
       </nav>
 
       {isAdminOpen && <AdminPanel employees={employees} departments={departments} onClose={() => setIsAdminOpen(false)} onSave={(e, d) => handleSaveData(e, d, history)} />}
-      
-      {isSaving && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center gap-4">
-          <Loader2 className="animate-spin text-orange-500" size={48} />
-          <p className="text-white font-black uppercase text-xs tracking-[0.2em]">Guardando...</p>
-        </div>
-      )}
     </div>
   );
 };
