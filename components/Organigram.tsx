@@ -1,155 +1,184 @@
-import React, { useState } from 'react';
-import { Employee } from '../types';
-import { ChevronRight, ChevronDown, User, Plus, Star } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { EvaluationState, Employee, Criterion, SavedEvaluation } from './types';
+import { Dashboard } from './components/Dashboard';
+import { Organigram } from './components/Organigram';
+import { EvaluationForm } from './components/EvaluationForm';
+import { AnalysisView } from './components/AnalysisView';
+import { AdminPanel } from './components/AdminPanel';
+import { Login } from './components/Login';
+import { Logo } from './components/Logo';
+import { LayoutDashboard, Users, BarChart3, LogOut, Loader2, Settings } from 'lucide-react';
 
-interface OrgNodeProps {
-  employee: Employee;
-  allEmployees: Employee[];
-  currentUser: Employee | null;
-  onSelect: (employee: Employee) => void;
-  level: number;
-  supervisorId?: string;
-}
+const LEADERS = ["DANIEL GANDOLFO", "CRISTINA GARCIA", "PABLO CANDIA", "GONZALO VIÑAS"];
 
-const OrgNode: React.FC<OrgNodeProps> = ({ employee, allEmployees, currentUser, onSelect, level, supervisorId }) => {
-  const [isOpen, setIsOpen] = useState(level === 0);
-  const employeeId = employee.id;
+const App: React.FC = () => {
+  const [history, setHistory] = useState<SavedEvaluation[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [globalCriteria, setGlobalCriteria] = useState<Criterion[]>([
+    { id: '1', name: 'Productividad', score: 5, feedback: '', category: 'Desempeño' },
+    { id: '2', name: 'Calidad ISO', score: 5, feedback: '', category: 'Calidad' },
+    { id: '3', name: 'Seguridad e Higiene', score: 5, feedback: '', category: 'Calidad' },
+    { id: '4', name: 'Trabajo en Equipo', score: 5, feedback: '', category: 'Competencias Blandas' },
+    { id: '5', name: 'Mantenimiento de Puesto', score: 5, feedback: '', category: 'Actitud' }
+  ]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [state, setState] = useState<EvaluationState>({ step: 'dashboard', selectedEmployeeId: null, currentCriteria: [], analysis: null });
 
-  const subordinates = allEmployees.filter(e => {
-    const parentId = e.reportsto || e.reportsTo;
-    return parentId === employeeId ||
-      e.additionalRoles?.some(r => (r.reportsto || r.reportsTo) === employeeId);
-  });
+  const isSuper = !!(currentUser?.name && LEADERS.includes(currentUser.name.toUpperCase()));
 
-  const hasSubordinates = subordinates.length > 0;
+  const fetchData = async () => {
+    try {
+      const response = await fetch('/api/data');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || "Server error");
+      }
+      const data = await response.json();
 
-  // Filter roles relevant to this supervisor
-  const managerId = employee.reportsto || employee.reportsTo;
-  const isPrimarySupervised = managerId === supervisorId;
-  const relevantAdditionalRoles = (employee.additionalroles || employee.additionalRoles || [])
-    .filter(r => (r.reportsto || r.reportsTo) === supervisorId);
+      let loadedEmployees = data.employees || [];
+      // Bootstrap logic: If DB is empty, provide a way for Admin to enter
+      if (loadedEmployees.length === 0) {
+        console.warn("Database empty. Adding bootstrap admin.");
+        loadedEmployees = [{
+          id: 'admin_bootstrap',
+          name: 'DANIEL GANDOLFO',
+          department: 'DIRECCIÓN',
+          jobtitle: 'GERENTE GENERAL',
+          reportsto: ''
+        }];
+      }
 
-  // Hierarchical permission check: Can only evaluate if direct subordinate of currentUser
-  const isMyDirectSubordinate = managerId === currentUser?.id ||
-    (employee.additionalroles || employee.additionalRoles || [])
-      .some(r => (r.reportsto || r.reportsTo) === currentUser?.id);
+      setEmployees(loadedEmployees);
 
-  return (
-    <div className="flex flex-col text-slate-200">
-      <div
-        className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl transition-all cursor-pointer group ${level === 0 ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/20' : 'hover:bg-slate-800 border border-transparent hover:border-slate-700'
-          }`}
-        style={{ marginLeft: `${level * (window.innerWidth < 640 ? 12 : 24)}px` }}
-        onClick={() => {
-          if (hasSubordinates) setIsOpen(!isOpen);
-        }}
-      >
-        <div className={`flex-shrink-0 flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full transition-colors ${level === 0 ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400 group-hover:bg-orange-500 group-hover:text-white'}`}>
-          <User size={window.innerWidth < 640 ? 16 : 20} />
-        </div>
+      try {
+        if (data.departments) setDepartments(data.departments.map((d: any) => typeof d === 'string' ? d : d.name));
+        if (data.evaluations) setHistory(data.evaluations);
 
-        <div className="flex-1 min-w-0">
-          <h3 className={`font-semibold text-sm sm:text-base break-words ${level === 0 ? 'text-white' : 'text-slate-200'}`}>{employee.name}</h3>
-          <div className={`text-[10px] sm:text-xs break-words ${level === 0 ? 'text-orange-200' : 'text-slate-500'}`}>
-            {(level === 0 || isPrimarySupervised || (relevantAdditionalRoles.length === 0 && !supervisorId)) && (
-              <div>{employee.jobtitle || employee.jobTitle} • {employee.department}</div>
-            )}
-            {relevantAdditionalRoles.map((role, idx) => (
-              <div key={idx} className="opacity-80 italic">{role.jobtitle || role.jobTitle} • {role.department}</div>
-            ))}
-          </div>
-        </div>
+        if (data.settings) {
+          const critSetting = data.settings.find((s: any) => s.key === 'evaluation_criteria');
+          if (critSetting) {
+            const parsed = typeof critSetting.value === 'string' ? JSON.parse(critSetting.value) : critSetting.value;
+            if (Array.isArray(parsed)) setGlobalCriteria(parsed);
+          }
+        }
+      } catch (innerError) {
+        console.error("Error parsing fetched data details:", innerError);
+      }
+    } catch (e) {
+      console.error("Neon Connection Failed:", e);
+    }
+  };
 
-        {employee.averagescore !== undefined && (
-          <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 bg-amber-500/10 text-amber-400 rounded-lg text-[10px] sm:text-xs font-bold border border-amber-500/20">
-            <Star size={10} fill="currentColor" />
-            {(employee.averagescore || 0).toFixed(1)}
-          </div>
-        )}
+  useEffect(() => { fetchData(); }, []);
 
-        <div className="flex-shrink-0 flex items-center gap-1 sm:gap-2">
-          {isMyDirectSubordinate && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(employee);
-              }}
-              className="p-1.5 sm:p-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors shadow-sm"
-              title="Evaluar"
-            >
-              <Plus size={14} />
-            </button>
-          )}
+  const handleComplete = async (criteria: any, analysis: any) => {
+    if (!state.selectedEmployeeId) return;
+    setIsSaving(true);
 
-          {hasSubordinates && (
-            <div className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
-              <ChevronDown size={16} className={level === 0 ? 'text-orange-200' : 'text-slate-600'} />
-            </div>
-          )}
-        </div>
-      </div>
+    const total = criteria.reduce((acc: number, c: any) => acc + c.score, 0) / criteria.length;
 
-      <AnimatePresence>
-        {isOpen && hasSubordinates && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="mt-1 space-y-1">
-              {subordinates.map(sub => (
-                <OrgNode
-                  key={sub.id}
-                  employee={sub}
-                  allEmployees={allEmployees}
-                  currentUser={currentUser}
-                  onSelect={onSelect}
-                  level={level + 1}
-                  supervisorId={employee.id}
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
+    // Objeto con mapeo estricto a minúsculas para Neon
+    const newEval = {
+      id: Date.now().toString(),
+      employeeid: String(state.selectedEmployeeId),
+      evaluatorid: String(currentUser?.id || '1'),
+      date: new Date().toISOString(),
+      criteria: criteria,
+      finalscore: Number(total.toFixed(2)),
+      analysis: analysis
+    };
 
-interface OrganigramProps {
-  employees: Employee[];
-  currentUser: Employee | null;
-  onSelectEmployee: (employee: Employee) => void;
-}
+    try {
+      const res = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employees, evaluations: [newEval, ...history] }),
+      });
 
-export const Organigram: React.FC<OrganigramProps> = ({ employees, currentUser, onSelectEmployee }) => {
-  const rootEmployees = employees.filter(e => {
-    const managerId = e.reportsto || e.reportsTo;
-    const additionalRoot = (e.additionalroles || e.additionalRoles || []).some(r => !(r.reportsto || r.reportsTo));
-    return !managerId || additionalRoot;
-  });
+      if (res.ok) {
+        await fetchData();
+        setState({ step: 'dashboard', selectedEmployeeId: null, currentCriteria: [], analysis: null });
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || "Fallo en servidor");
+      }
+    } catch (e: any) {
+      alert("Error al guardar en Neon: " + e.message);
+    } finally { setIsSaving(false); }
+  };
+
+  if (!isLoggedIn) return <Login employees={employees} onLogin={(u) => { setCurrentUser(u); setIsLoggedIn(true); }} />;
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto p-4 text-slate-200">
-      <div className="mb-8 text-center">
-        <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Estructura Organizacional</h2>
-        <p className="text-slate-400 text-sm italic">Explore la jerarquía. El botón (+) solo aparecerá para sus subordinados directos.</p>
-      </div>
+    <div className="min-h-screen bg-slate-950 flex flex-col text-white font-sans">
+      <header className="bg-slate-900 border-b border-slate-800 h-28 flex items-center px-12 justify-between sticky top-0 z-50">
+        <Logo className="w-44" />
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="text-[10px] font-black text-orange-500 uppercase">{currentUser?.jobtitle || currentUser?.jobTitle}</p>
+            <p className="text-sm font-bold">{currentUser?.name}</p>
+          </div>
+          {isSuper && <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500 hover:bg-slate-700 transition-all"><Settings size={22} /></button>}
+          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 hover:bg-red-900/40 transition-all"><LogOut size={22} /></button>
+        </div>
+      </header>
 
-      <div className="bg-slate-900 p-6 rounded-3xl shadow-xl border border-slate-800">
-        {rootEmployees.map(root => (
-          <OrgNode
-            key={root.id}
-            employee={root}
-            allEmployees={employees}
-            currentUser={currentUser}
-            onSelect={onSelectEmployee}
-            level={0}
+      {isSuper && (
+        <nav className="flex justify-center mt-6 gap-4 px-4 sticky top-32 z-40">
+          <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 transition-all ${state.step === 'dashboard' ? 'bg-orange-600 shadow-lg shadow-orange-900/50' : 'bg-slate-800 hover:bg-slate-700'}`}><LayoutDashboard size={18} /> Panel</button>
+          <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 transition-all ${state.step === 'organigram' ? 'bg-orange-600 shadow-lg shadow-orange-900/50' : 'bg-slate-800 hover:bg-slate-700'}`}><Users size={18} /> Organigrama</button>
+        </nav>
+      )}
+
+      <main className="flex-1">
+        {state.step === 'dashboard' && <Dashboard evaluations={history} employees={employees} currentUser={currentUser} onQuickStart={(id: string) => setState({ ...state, step: 'form', selectedEmployeeId: id })} onView={(ev: any) => {
+          const crit = typeof ev.criteria === 'string' ? JSON.parse(ev.criteria) : ev.criteria;
+          const an = typeof ev.analysis === 'string' ? JSON.parse(ev.analysis) : ev.analysis;
+          setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeid, currentCriteria: crit, analysis: an });
+        }} />}
+        {state.step === 'organigram' && <div className="p-8 max-w-6xl mx-auto"><Organigram employees={employees} currentUser={currentUser} onSelectEmployee={(emp: any) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id })} /></div>}
+        {state.step === 'form' && state.selectedEmployeeId && (
+          <EvaluationForm
+            employee={employees.find(e => e.id === state.selectedEmployeeId)!}
+            initialCriteria={globalCriteria}
+            onComplete={handleComplete}
+            onCancel={() => setState({ ...state, step: 'dashboard' })}
           />
-        ))}
-      </div>
+        )}
+        {state.step === 'report' && <AnalysisView employee={employees.find(e => e.id === state.selectedEmployeeId)!} criteria={state.currentCriteria} analysis={state.analysis} onReset={() => setState({ ...state, step: 'dashboard' })} />}
+      </main>
+
+      {isAdminOpen && (
+        <AdminPanel
+          employees={employees}
+          departments={departments}
+          criteria={globalCriteria}
+          onClose={() => setIsAdminOpen(false)}
+          onSave={async (emp, dept, crit) => {
+            try {
+              setIsSaving(true);
+              const settings = crit ? [{ key: 'evaluation_criteria', value: crit }] : [];
+              await fetch('/api/data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employees: emp, departments: dept, evaluations: history, settings }),
+              });
+              await fetchData();
+            } catch (e) {
+              alert("Error al actualizar configuración");
+            } finally {
+              setIsSaving(false);
+            }
+          }}
+        />
+      )}
+      {isSaving && <div className="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center"><Loader2 className="animate-spin text-orange-500 mb-4" size={48} /><p className="font-black uppercase text-xs">Guardando...</p></div>}
     </div>
   );
 };
+
+export default App;
