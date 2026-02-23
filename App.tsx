@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { EvaluationState, Employee, Criterion, SavedEvaluation, AdminSettings, Department } from './types';
-import { generateIsoCriteria, analyzeEvaluation } from './services/geminiService';
-import { RangeSlider } from './components/RangeSlider';
-import { AnalysisView } from './components/AnalysisView';
+import { EvaluationState, Employee, Criterion, SavedEvaluation, Department } from './types';
+import { analyzeEvaluation } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
 import { Organigram } from './components/Organigram';
 import { AdminPanel } from './components/AdminPanel';
+import { EvaluationForm } from './components/EvaluationForm'; // Nuevo componente
 import { Login } from './components/Login';
 import { Logo } from './components/Logo';
-import { INITIAL_EMPLOYEES, DEFAULT_CRITERIA, DEPARTMENTS } from './constants';
-import { Loader2, CheckCircle2, ArrowLeft, Settings, Users, LayoutDashboard, BarChart3, LogOut } from 'lucide-react';
+import { INITIAL_EMPLOYEES, DEPARTMENTS } from './constants';
+import { Loader2, Settings, Users, LayoutDashboard, BarChart3, LogOut, ArrowLeft } from 'lucide-react';
 
 const App: React.FC = () => {
   const [history, setHistory] = useState<SavedEvaluation[]>([]);
@@ -28,7 +27,6 @@ const App: React.FC = () => {
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchData = async () => {
@@ -71,15 +69,13 @@ const App: React.FC = () => {
       if (!response.ok) throw new Error('Error al guardar');
       await fetchData(); 
     } catch (error) {
-      setError('Error de sincronización.');
+      console.error('Error de sincronización.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const handleAdminSave = async (updatedEmployees: Employee[], updatedDepartments: Department[]) => {
     await saveData({ employees: updatedEmployees, departments: updatedDepartments, evaluations: history });
@@ -92,7 +88,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col text-slate-50 pb-20 lg:pb-0">
       
-      {/* HEADER: Limpio para celular */}
+      {/* HEADER */}
       <header className="bg-slate-900 border-b border-slate-800 h-16 sm:h-20 flex items-center px-4 sm:px-8 justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
            <Logo className="w-20 sm:w-32" />
@@ -109,41 +105,70 @@ const App: React.FC = () => {
 
       {/* NAVEGACIÓN INFERIOR (Solo Celular) */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 px-6 py-3 flex justify-between items-center z-[60] shadow-[0_-10px_20px_rgba(0,0,0,0.4)]">
-        <button onClick={() => setState(prev => ({ ...prev, step: 'dashboard' }))} className={`flex flex-col items-center gap-1 ${state.step === 'dashboard' ? 'text-orange-500' : 'text-slate-500'}`}>
+        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`flex flex-col items-center gap-1 ${state.step === 'dashboard' ? 'text-orange-500' : 'text-slate-500'}`}>
           <LayoutDashboard size={20} /><span className="text-[8px] font-black uppercase">Panel</span>
         </button>
-        <button onClick={() => setState(prev => ({ ...prev, step: 'organigram' }))} className={`flex flex-col items-center gap-1 ${state.step === 'organigram' ? 'text-orange-500' : 'text-slate-500'}`}>
-          <Users size={20} /><span className="text-[8px] font-black uppercase">Organigrama</span>
+        <button onClick={() => setState({ ...state, step: 'organigram' })} className={`flex flex-col items-center gap-1 ${state.step === 'organigram' ? 'text-orange-500' : 'text-slate-500'}`}>
+          <Users size={20} /><span className="text-[8px] font-black uppercase">Evaluar</span>
         </button>
-        <button onClick={() => setState(prev => ({ ...prev, step: 'stats' }))} className={`flex flex-col items-center gap-1 ${state.step === 'stats' ? 'text-orange-500' : 'text-slate-500'}`}>
-          <BarChart3 size={20} /><span className="text-[8px] font-black uppercase">Estadísticas</span>
+        <button className="flex flex-col items-center gap-1 text-slate-700 opacity-30">
+          <BarChart3 size={20} /><span className="text-[8px] font-black uppercase">Stats</span>
         </button>
       </nav>
 
-      {/* NAVEGACIÓN SUPERIOR (Solo Desktop) */}
+      {/* NAVEGACIÓN SUPERIOR (Desktop) */}
       <nav className="hidden lg:flex max-w-7xl mx-auto mt-4 gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
-        <button onClick={() => setState(prev => ({ ...prev, step: 'dashboard' }))} className={`px-6 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'dashboard' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}><LayoutDashboard size={16}/> Panel</button>
-        <button onClick={() => setState(prev => ({ ...prev, step: 'organigram' }))} className={`px-6 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'organigram' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}><Users size={16}/> Organigrama</button>
-        <button onClick={() => setState(prev => ({ ...prev, step: 'stats' }))} className={`px-6 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'stats' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}><BarChart3 size={16}/> Estadísticas</button>
+        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'dashboard' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}><LayoutDashboard size={16}/> Panel</button>
+        <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'organigram' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}><Users size={16}/> Organigrama</button>
       </nav>
 
       <main className="flex-1 pb-10">
-        {state.step === 'dashboard' && <Dashboard evaluations={history} employees={employees} currentUser={currentUser} onNew={() => setState(prev => ({ ...prev, step: 'organigram' }))} onView={(ev) => {
-          const emp = employees.find(e => e.id === ev.employeeId);
-          if (emp) setState({ step: 'report', selectedEmployeeId: emp.id, currentCriteria: ev.criteria, analysis: ev.analysis });
-        }} onDelete={fetchData} />}
-        {state.step === 'organigram' && <div className="py-4 sm:py-8"><Organigram employees={employees} onSelectEmployee={(emp) => fetchData().then(() => { /* lógica de selección */ })} /></div>}
-        {state.step === 'stats' && <div className="p-20 text-center opacity-30 font-black uppercase tracking-widest">Módulo de Estadísticas en Desarrollo</div>}
+        {state.step === 'dashboard' && (
+          <Dashboard 
+            evaluations={history} 
+            employees={employees} 
+            currentUser={currentUser} 
+            onNew={() => setState({ ...state, step: 'organigram' })} 
+            onView={(ev) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })} 
+            onDelete={fetchData} 
+          />
+        )}
+        
+        {state.step === 'organigram' && (
+          <div className="py-4 sm:py-8 max-w-5xl mx-auto px-4">
+             <div className="flex items-center gap-3 mb-6">
+                <button onClick={() => setState({...state, step: 'dashboard'})} className="p-2 bg-slate-800 rounded-lg text-slate-400"><ArrowLeft size={20}/></button>
+                <h2 className="text-xl font-black uppercase">Elegí a quién evaluar</h2>
+             </div>
+             <Organigram 
+                employees={employees} 
+                onSelectEmployee={(emp) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id })} 
+             />
+          </div>
+        )}
+
+        {state.step === 'form' && state.selectedEmployeeId && (
+          <EvaluationForm 
+             employee={employees.find(e => e.id === state.selectedEmployeeId)!}
+             onComplete={async (criteria, analysis) => {
+                const newEval: SavedEvaluation = {
+                  id: Date.now().toString(),
+                  date: new Date().toISOString(),
+                  employeeId: state.selectedEmployeeId!,
+                  evaluatorId: currentUser?.id || '1',
+                  criteria,
+                  analysis
+                };
+                const updatedHistory = [newEval, ...history];
+                await saveData({ employees, departments, evaluations: updatedHistory });
+                setState({ ...state, step: 'dashboard' });
+             }}
+             onCancel={() => setState({ ...state, step: 'dashboard' })}
+          />
+        )}
       </main>
 
       {isAdminOpen && <AdminPanel employees={employees} departments={departments} onClose={() => setIsAdminOpen(false)} onSave={handleAdminSave} />}
-      
-      {(isLoading || isSaving) && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center gap-4">
-          <Loader2 className="animate-spin text-orange-500" size={48} />
-          <p className="text-white font-black uppercase text-xs tracking-[0.2em]">{isSaving ? 'Sincronizando con RR Etiquetas...' : 'Analizando Competencias...'}</p>
-        </div>
-      )}
     </div>
   );
 };
