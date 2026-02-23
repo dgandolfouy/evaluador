@@ -1,29 +1,9 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
-
-// Verificamos la API KEY
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
-
 export const analyzeEvaluation = async (employee: any, criteria: any[]) => {
-  try {
-    // IMPORTANTE: gemini-1.5-flash es el modelo estable que soporta esquemas JSON
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: SchemaType.OBJECT,
-          properties: {
-            summary: { type: SchemaType.STRING, description: "Resumen ejecutivo del desempeño." },
-            strengths: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Fortalezas detectadas." },
-            weaknesses: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Áreas de mejora." },
-            trainingPlan: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "3 acciones formativas recomendadas (ISO 9001)." },
-            isoComplianceLevel: { type: SchemaType.STRING, description: "Nivel (Bajo, Medio, Alto, Excelente)." },
-          },
-          required: ["summary", "strengths", "weaknesses", "trainingPlan", "isoComplianceLevel"],
-        },
-      },
-    });
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+  // Usamos el modelo 1.5-flash que es el estándar actual
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
+  try {
     const prompt = `
       Actúa como experto en ISO 9001:2015 y RRHH en la industria flexográfica (RR Etiquetas).
       Analiza el desempeño de ${employee.name} con cargo de ${employee.jobTitle}.
@@ -31,21 +11,42 @@ export const analyzeEvaluation = async (employee: any, criteria: any[]) => {
       Datos de la evaluación:
       ${criteria.map(c => `- ${c.name}: ${c.score}/10. Evidencia: ${c.feedback}`).join('\n')}
 
-      Genera un reporte constructivo y profesional cumpliendo estrictamente con el esquema JSON.
+      Genera un reporte constructivo y profesional.
+      Responde ÚNICAMENTE en formato JSON con esta estructura exacta:
+      {
+        "summary": "Resumen ejecutivo",
+        "strengths": ["fortaleza1", "fortaleza2"],
+        "weaknesses": ["mejora1", "mejora2"],
+        "trainingPlan": ["accion1", "accion2", "accion3"],
+        "isoComplianceLevel": "Bajo/Medio/Alto/Excelente"
+      }
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return JSON.parse(response.text());
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    });
+
+    const data = await response.json();
+    
+    if (!data.candidates || data.candidates.length === 0) throw new Error("No hay respuesta de IA");
+    
+    const responseText = data.candidates[0].content.parts[0].text;
+    const cleanJson = responseText.replace(/```json|```/g, "").trim();
+    
+    return JSON.parse(cleanJson);
+
   } catch (error) {
     console.error("Error en Gemini:", error);
-    // Respuesta de respaldo para que la app no se cuelgue si falla la IA
     return {
-      summary: "Evaluación procesada manualmente por error de conexión con el servicio de IA.",
-      strengths: ["Competencia técnica en el puesto"],
-      weaknesses: ["Documentación de evidencias"],
+      summary: "Análisis manual requerido por error de conexión con el servicio de IA.",
+      strengths: ["Competencia técnica demostrada"],
+      weaknesses: ["Documentación de procesos"],
       trainingPlan: ["Revisión de procedimientos operativos"],
-      isoComplianceLevel: "Pendiente de revisión"
+      isoComplianceLevel: "Pendiente"
     };
   }
 };
