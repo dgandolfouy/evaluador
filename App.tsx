@@ -1,61 +1,164 @@
-import React from 'react';
-import { SavedEvaluation, Employee } from '../types';
-import { Calendar, CheckCircle, Clock, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { EvaluationState, Employee, Criterion, SavedEvaluation, Department } from './types';
+import { Dashboard } from './components/Dashboard';
+import { Organigram } from './components/Organigram';
+import { EvaluationForm } from './components/EvaluationForm';
+import { Login } from './components/Login';
+import { Logo } from './components/Logo';
+import { INITIAL_EMPLOYEES, DEPARTMENTS } from './constants';
+import { Settings, Users, LayoutDashboard, LogOut, ArrowLeft, Loader2 } from 'lucide-react';
 
-export const Dashboard = ({ evaluations, employees, currentUser, onNew, onView }: any) => {
-  // Obtenemos la lista de subordinados para saber a quiénes falta evaluar
-  const mySubordinates = employees.filter((e: Employee) => e.reportsTo === currentUser?.id);
+const App: React.FC = () => {
+  const [history, setHistory] = useState<SavedEvaluation[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
-  return (
-    <div className="p-6 max-w-7xl mx-auto space-y-10">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter">Control de Evaluaciones</h2>
-          <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">Gestión de Personal RR Etiquetas</p>
-        </div>
-        <button onClick={onNew} className="bg-orange-600 hover:bg-orange-500 text-white px-8 py-4 rounded-3xl font-black uppercase text-xs shadow-2xl flex items-center gap-2 transition-all">
-          <Plus size={20}/> Nueva Evaluación
-        </button>
-      </div>
+  const [state, setState] = useState<EvaluationState>({
+    step: 'dashboard',
+    selectedEmployeeId: null,
+    currentCriteria: [],
+    analysis: null,
+  });
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {mySubordinates.map((emp: Employee) => {
-          const lastEval = evaluations.find((ev: SavedEvaluation) => ev.employeeId === emp.id);
-          
-          return (
-            <div key={emp.id} className={`p-6 rounded-[2.5rem] border ${lastEval ? 'bg-slate-900/40 border-green-500/20' : 'bg-slate-900 border-slate-800'} transition-all`}>
-              <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center font-black text-orange-500">
-                  {emp.name.substring(0,2).toUpperCase()}
-                </div>
-                {lastEval ? (
-                  <span className="bg-green-500/10 text-green-500 text-[9px] font-black px-3 py-1 rounded-full uppercase flex items-center gap-1">
-                    <CheckCircle size={10}/> Evaluado
-                  </span>
-                ) : (
-                  <span className="bg-orange-500/10 text-orange-500 text-[9px] font-black px-3 py-1 rounded-full uppercase flex items-center gap-1">
-                    <Clock size={10}/> Pendiente
-                  </span>
-                )}
-              </div>
-              
-              <h3 className="font-black uppercase text-sm mb-1">{emp.name}</h3>
-              <p className="text-slate-500 text-[10px] font-bold uppercase mb-4">{emp.jobTitle}</p>
-              
-              {lastEval ? (
-                <div className="border-t border-slate-800 pt-4 mt-4">
-                  <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase mb-4">
-                    <Calendar size={12}/> {new Date(lastEval.date).toLocaleDateString()}
-                  </div>
-                  <button onClick={() => onView(lastEval)} className="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-[10px] font-black uppercase transition-all">Ver Informe</button>
-                </div>
-              ) : (
-                <button onClick={() => onNew()} className="w-full py-3 border border-dashed border-slate-700 hover:border-orange-500/50 rounded-xl text-[10px] font-black uppercase text-slate-500 hover:text-orange-500 transition-all">Iniciar Ahora</button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+  const fetchData = async () => {
+    try {
+      const response = await fetch('/api/data');
+      const data = await response.json();
+      if (data.employees) {
+        const normalizedEmployees = data.employees.map((e: any) => ({
+          ...e,
+          jobTitle: e.jobTitle || e.jobtitle,
+          reportsTo: e.reportsTo || e.reportsto,
+          additionalRoles: e.additionalRoles || e.additionalroles || []
+        }));
+        setEmployees(normalizedEmployees);
+        setDepartments(data.departments.map((d: any) => typeof d === 'string' ? d : d.name));
+        setHistory(data.evaluations || []);
+      }
+    } catch (e) {
+      setEmployees(INITIAL_EMPLOYEES);
+      setDepartments(DEPARTMENTS);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  // --- REGLA: SOLO EVALUAR SUBORDINADOS ---
+  const getSubordinates = (managerId: string) => {
+    return employees.filter(emp => emp.reportsTo === managerId);
+  };
+
+  const defaultCriteria: Criterion[] = [
+    { id: '1', name: 'Productividad', description: 'Capacidad para cumplir con los volúmenes de producción.', score: 5, category: 'Producción' },
+    { id: '2', name: 'Calidad del Trabajo', description: 'Atención al detalle y estándares técnicos.', score: 5, category: 'Calidad' },
+    { id: '3', name: 'Seguridad e Higiene', description: 'Uso de EPP y orden según ISO 9001.', score: 5, category: 'Normativa' },
+    { id: '4', name: 'Trabajo en Equipo', description: 'Actitud y colaboración con el área.', score: 5, category: 'Actitud' }
+  ];
+
+  const handleSelectEmployee = (employee: Employee) => {
+    if (employee.id === currentUser?.id) {
+      alert("No puedes realizar tu propia evaluación.");
+      return;
+    }
+    setState({
+      ...state,
+      step: 'form',
+      selectedEmployeeId: employee.id,
+      currentCriteria: defaultCriteria
+    });
+  };
+
+  const handleSaveData = async (updatedHistory: SavedEvaluation[]) => {
+    setIsSaving(true);
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employees, departments, evaluations: updatedHistory }),
+      });
+      await fetchData();
+    } finally { setIsSaving(false); }
+  };
+
+  if (!isLoggedIn) return <Login employees={employees} onLogin={(u) => { setCurrentUser(u); setIsLoggedIn(true); }} />;
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col text-slate-50 font-sans">
+      <header className="bg-slate-900 border-b border-slate-800 h-28 flex items-center px-6 sm:px-12 justify-between sticky top-0 z-50">
+        <Logo className="w-44" />
+        <div className="flex items-center gap-4">
+          <div className="text-right hidden sm:block">
+            <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{currentUser?.jobTitle}</p>
+            <p className="text-xs font-bold text-white uppercase">{currentUser?.name}</p>
+          </div>
+          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 hover:bg-red-900/30 transition-all">
+            <LogOut size={22} />
+          </button>
+        </div>
+      </header>
+
+      <main className="flex-1 pb-24 lg:pb-8">
+        {state.step === 'dashboard' && (
+          <Dashboard 
+            evaluations={history} 
+            employees={employees} 
+            currentUser={currentUser} 
+            onNew={() => setState({ ...state, step: 'organigram' })}
+            onView={(ev) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })}
+            onDelete={fetchData} 
+          />
+        )}
+
+        {state.step === 'organigram' && (
+          <div className="p-6 max-w-6xl mx-auto">
+            <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-8 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest text-slate-400 hover:text-white transition-all">
+              <ArrowLeft size={16}/> Volver
+            </button>
+            <h2 className="text-xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4 tracking-tight">Personal a mi Cargo</h2>
+            <Organigram 
+              employees={getSubordinates(currentUser?.id || '')} 
+              onSelectEmployee={handleSelectEmployee} 
+            />
+          </div>
+        )}
+
+        {state.step === 'form' && state.selectedEmployeeId && (
+          <EvaluationForm 
+            employee={employees.find(e => e.id === state.selectedEmployeeId)!}
+            initialCriteria={state.currentCriteria}
+            onCancel={() => setState({...state, step: 'dashboard'})}
+            onComplete={async (criteria: any, analysis: any) => {
+              const newEval = { 
+                id: Date.now().toString(), 
+                employeeId: state.selectedEmployeeId!, 
+                date: new Date().toISOString(), 
+                criteria, 
+                analysis, 
+                evaluatorId: currentUser?.id || '' 
+              };
+              await handleSaveData([newEval, ...history]);
+              setState({...state, step: 'dashboard'});
+            }}
+          />
+        )}
+      </main>
+
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 px-12 py-5 flex justify-between items-center z-[60] shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
+        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={state.step === 'dashboard' ? 'text-orange-500' : 'text-slate-500'}><LayoutDashboard size={30} /></button>
+        <button onClick={() => setState({ ...state, step: 'organigram' })} className={state.step === 'organigram' ? 'text-orange-500' : 'text-slate-500'}><Users size={30} /></button>
+      </nav>
+
+      {isSaving && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center gap-4">
+          <Loader2 className="animate-spin text-orange-500" size={48} />
+          <p className="text-white font-black uppercase text-xs tracking-[0.2em]">Guardando en RR Etiquetas...</p>
+        </div>
+      )}
     </div>
   );
 };
+
+export default App; // ESTA LÍNEA ES LA QUE FALTABA
