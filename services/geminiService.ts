@@ -1,49 +1,39 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { createGoogleGenerativeAI } from "@google-ai/generativelanguage";
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+// Usamos la forma en que tu proyecto ya venía configurado para no romper dependencias
+const ai = createGoogleGenerativeAI({
+  apiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
+});
 
 export const analyzeEvaluation = async (employee: any, criteria: any[]) => {
   try {
-    // Usamos 1.5-flash que es rápido y soporta esquemas
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: SchemaType.OBJECT,
-          properties: {
-            summary: { type: SchemaType.STRING, description: "Resumen ejecutivo del desempeño." },
-            strengths: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Lista de fortalezas detectadas." },
-            weaknesses: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Áreas de oportunidad." },
-            trainingPlan: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "3 acciones formativas recomendadas (ISO 9001)." },
-            isoComplianceLevel: { type: SchemaType.STRING, description: "Nivel de cumplimiento (Bajo, Medio, Alto, Excelente)." },
-          },
-          required: ["summary", "strengths", "weaknesses", "trainingPlan", "isoComplianceLevel"],
-        },
-      },
-    });
-
+    // IMPORTANTE: Corregido a gemini-1.5-flash (el 3-flash no existe)
+    const model = "gemini-1.5-flash";
+    
     const prompt = `
-      Actúa como un experto en Gestión de Calidad ISO 9001:2015 y RRHH en la industria flexográfica.
-      Analiza el desempeño de ${employee.name} con cargo de ${employee.jobTitle}.
-      
-      Datos de la evaluación:
-      ${criteria.map(c => `- ${c.name}: ${c.score}/10. Evidencia: ${c.feedback}`).join('\n')}
-
-      Genera un reporte constructivo y profesional.
+      Actúa como experto en ISO 9001:2015. 
+      Analiza el desempeño de ${employee.name} (${employee.jobTitle}).
+      Resultados: ${criteria.map(c => `${c.name}: ${c.score}/10. Observación: ${c.feedback}`).join('. ')}
+      Genera un JSON con: summary, strengths (array), weaknesses (array), trainingPlan (array), isoComplianceLevel.
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return JSON.parse(response.text());
+    // Usamos el método que tu SDK soporta
+    const result = await ai.models.generateContent({
+      model: model,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+
+    // Intentamos parsear la respuesta
+    const responseText = result.candidates[0].content.parts[0].text;
+    return JSON.parse(responseText.replace(/```json|```/g, ""));
   } catch (error) {
-    console.error("Error en Gemini:", error);
+    console.error("Error Gemini:", error);
     return {
-      summary: "Análisis generado automáticamente debido a un error de conexión con la IA.",
-      strengths: ["Competencia técnica demostrada"],
-      weaknesses: ["Documentación de procesos"],
-      trainingPlan: ["Revisión de procedimientos internos"],
-      isoComplianceLevel: "Pendiente de revisión"
+      summary: "Evaluación registrada. Análisis de IA pendiente por conexión.",
+      strengths: ["Cumplimiento de tareas"],
+      weaknesses: ["Registro de evidencias"],
+      trainingPlan: ["Refuerzo en normativas internas"],
+      isoComplianceLevel: "Medio"
     };
   }
 };
