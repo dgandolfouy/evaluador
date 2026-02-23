@@ -2,13 +2,15 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { createPool } from '@vercel/postgres';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Inicializamos el pool de conexión con Neon
   const pool = createPool();
 
+  // MODO LECTURA: Trae los datos de la base a la App
   if (req.method === 'GET') {
     try {
-      // Usamos comillas dobles para que el SELECT respete las mayúsculas de los campos
-      const { rows: employees } = await pool.sql`SELECT id, name, department, "jobTitle", "reportsTo", "additionalRoles", "averageScore" FROM employees;`;
+      const { rows: employees } = await pool.sql`
+        SELECT id, name, department, "jobTitle", "reportsTo", "additionalRoles", "averageScore" 
+        FROM employees;
+      `;
       const { rows: departments } = await pool.sql`SELECT * FROM departments;`;
       const { rows: evaluations } = await pool.sql`SELECT * FROM evaluations;`;
 
@@ -19,26 +21,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     } catch (error) {
       console.error("Error en GET:", error);
-      return res.status(500).json({ error: "Error obteniendo datos del servidor" });
+      return res.status(500).json({ error: "Error al obtener datos" });
     }
   }
 
+  // MODO ESCRITURA: Guarda los cambios de la App en la base
   if (req.method === 'POST') {
     try {
       const { employees, departments, evaluations } = req.body;
 
       await pool.sql`BEGIN;`;
       
-      // Limpiamos las tablas antes de la nueva carga (importante para mantener sincronía)
+      // ESTA LÍNEA ES CLAVE: Borra todo lo viejo para que si eliminaste a alguien en la App,
+      // también se elimine en la base de datos al guardar la nueva lista.
       await pool.sql`TRUNCATE TABLE evaluations, employees, departments RESTART IDENTITY CASCADE;`;
 
-      // 1. Insertar Departamentos
+      // 1. Guardar Departamentos
       for (const dept of departments) {
         const name = typeof dept === 'object' ? dept.name : dept;
         await pool.sql`INSERT INTO departments (name) VALUES (${name});`;
       }
 
-      // 2. Insertar Empleados (Asegurando Nombre, Puesto, Superior y Cargos)
+      // 2. Guardar Empleados con todos sus campos
       for (const emp of employees) {
         await pool.sql`
           INSERT INTO employees (id, name, department, "jobTitle", "reportsTo", "additionalRoles", "averageScore")
@@ -54,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `;
       }
 
-      // 3. Insertar Evaluaciones
+      // 3. Guardar Evaluaciones
       if (evaluations && Array.isArray(evaluations)) {
         for (const ev of evaluations) {
           await pool.sql`
@@ -79,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error) {
       await pool.sql`ROLLBACK;`;
       console.error("Error en POST:", error);
-      return res.status(500).json({ error: "Error guardando la estructura completa" });
+      return res.status(500).json({ error: "Error al sincronizar los datos" });
     }
   }
 
