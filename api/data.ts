@@ -4,56 +4,57 @@ import { sql } from '@vercel/postgres';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     try {
-      const { rows: employees } = await sql`SELECT id, name, department, "jobTitle", "reportsTo", "additionalRoles", "averageScore" FROM employees;`;
-      const { rows: departments } = await sql`SELECT * FROM departments;`;
+      const { rows: employees = [] } = await sql`SELECT id, name, department, "jobTitle", "reportsTo", "additionalRoles", "averageScore" FROM employees;`;
+      const { rows: departments = [] } = await sql`SELECT * FROM departments;`;
       
-      const fixedEmployees = employees.map(emp => ({
-        ...emp,
-        // Nos aseguramos de que additionalRoles sea un Array para que la App no explote
-        additionalRoles: Array.isArray(emp.additionalRoles) ? emp.additionalRoles : []
+      // Mapeo ultra-seguro para que el frontend nunca reciba un 'undefined'
+      const safeEmployees = employees.map(emp => ({
+        id: emp.id || String(Math.random()),
+        name: emp.name || '',
+        department: emp.department || '',
+        jobTitle: emp.jobTitle || emp.jobtitle || '',
+        reportsTo: emp.reportsTo || emp.reportsto || '',
+        additionalRoles: Array.isArray(emp.additionalRoles) ? emp.additionalRoles : [],
+        averageScore: Number(emp.averageScore || 0)
       }));
 
-      return res.status(200).json({ employees: fixedEmployees, departments });
+      return res.status(200).json({ 
+        employees: safeEmployees, 
+        departments: departments.map(d => typeof d === 'string' ? d : d.name) 
+      });
     } catch (error) {
-      return res.status(500).json({ error: "Error de lectura" });
+      console.error(error);
+      return res.status(200).json({ employees: [], departments: [] }); // Devolvemos vacío pero no error 500
     }
   }
 
   if (req.method === 'POST') {
     try {
       const { employees = [], departments = [] } = req.body;
-      
-      // 1. Limpieza total rápida
+      await sql`BEGIN;`;
       await sql`TRUNCATE TABLE evaluations, employees, departments RESTART IDENTITY CASCADE;`;
 
-      // 2. Insertar Departamentos
       for (const dept of departments) {
-        const name = typeof dept === 'object' ? dept.name : dept;
-        await sql`INSERT INTO departments (name) VALUES (${name});`;
+        const dName = typeof dept === 'string' ? dept : dept.name;
+        if (dName) await sql`INSERT INTO departments (name) VALUES (${dName});`;
       }
 
-      // 3. Insertar Empleados con sus múltiples cargos
       for (const emp of employees) {
-        // Importante: Convertimos el array de roles adicionales a JSON String
-        const rolesJson = JSON.stringify(emp.additionalRoles || []);
-        
         await sql`
           INSERT INTO employees (id, name, department, "jobTitle", "reportsTo", "additionalRoles", "averageScore")
           VALUES (
-            ${emp.id}, 
-            ${emp.name}, 
-            ${emp.department}, 
-            ${emp.jobTitle}, 
-            ${emp.reportsTo || null}, 
-            ${rolesJson}, 
+            ${emp.id}, ${emp.name}, ${emp.department}, 
+            ${emp.jobTitle}, ${emp.reportsTo || ''}, 
+            ${JSON.stringify(emp.additionalRoles || [])}, 
             ${emp.averageScore || 0}
           );
         `;
       }
+      await sql`COMMIT;`;
       return res.status(200).json({ success: true });
     } catch (error) {
-      console.error("Error al guardar:", error);
-      return res.status(500).json({ error: "Error al guardar en Neon" });
+      await sql`ROLLBACK;`;
+      return res.status(500).json({ error: "Fallo al guardar" });
     }
   }
 }
