@@ -12,6 +12,7 @@ import { LayoutDashboard, Users, BarChart3, LogOut, Loader2, Settings } from 'lu
 const App: React.FC = () => {
   const [history, setHistory] = useState<SavedEvaluation[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
@@ -30,6 +31,7 @@ const App: React.FC = () => {
       }
       const data = await response.json();
       if (data.employees) setEmployees(data.employees);
+      if (data.departments) setDepartments(data.departments.map((d: any) => typeof d === 'string' ? d : d.name));
       if (data.evaluations) setHistory(data.evaluations);
     } catch (e) {
       console.error("Neon Connection Failed:", e);
@@ -108,7 +110,28 @@ const App: React.FC = () => {
         {state.step === 'report' && <AnalysisView employee={employees.find(e => e.id === state.selectedEmployeeId)!} criteria={state.currentCriteria} analysis={state.analysis} onReset={() => setState({ ...state, step: 'dashboard' })} />}
       </main>
 
-      {isAdminOpen && <AdminPanel employees={employees} onClose={() => setIsAdminOpen(false)} onSave={(e: any) => fetchData()} />}
+      {isAdminOpen && (
+        <AdminPanel
+          employees={employees}
+          departments={departments}
+          onClose={() => setIsAdminOpen(false)}
+          onSave={async (emp, dept) => {
+            try {
+              setIsSaving(true);
+              await fetch('/api/data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employees: emp, departments: dept, evaluations: history }),
+              });
+              await fetchData();
+            } catch (e) {
+              alert("Error al actualizar configuración");
+            } finally {
+              setIsSaving(false);
+            }
+          }}
+        />
+      )}
       {isSaving && <div className="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center"><Loader2 className="animate-spin text-orange-500 mb-4" size={48} /><p className="font-black uppercase text-xs">Guardando...</p></div>}
     </div>
   );
