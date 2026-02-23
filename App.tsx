@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { EvaluationState, Employee, Criterion, SavedEvaluation, Department } from './types';
+import { analyzeEvaluation } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
 import { Organigram } from './components/Organigram';
 import { EvaluationForm } from './components/EvaluationForm';
@@ -17,20 +18,18 @@ const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   
   const [state, setState] = useState<EvaluationState>({
-    step: 'dashboard',
-    selectedEmployeeId: null,
-    currentCriteria: [],
-    analysis: null,
+    step: 'dashboard', selectedEmployeeId: null, currentCriteria: [], analysis: null,
   });
 
   const fetchData = async () => {
     try {
       const response = await fetch('/api/data');
+      if (!response.ok) throw new Error('Error al obtener datos');
       const data = await response.json();
-      if (data.employees) {
-        setEmployees(data.employees);
-        setHistory(data.evaluations || []);
-      }
+      
+      // Si la DB está vacía, cargamos los iniciales pero NO los guardamos aún
+      setEmployees(data.employees?.length > 0 ? data.employees : INITIAL_EMPLOYEES);
+      setHistory(data.evaluations || []);
     } catch (e) {
       setEmployees(INITIAL_EMPLOYEES);
     }
@@ -38,19 +37,23 @@ const App: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const defaultCriteria = [
-    { id: '1', name: 'Productividad', description: 'Capacidad para cumplir con volúmenes y tiempos.', score: 5 },
-    { id: '2', name: 'Calidad del Trabajo', description: 'Cumplimiento de estándares ISO 9001.', score: 5 },
-    { id: '3', name: 'Seguridad e Higiene', description: 'Uso de EPP y orden del puesto.', score: 5 },
-    { id: '4', name: 'Trabajo en Equipo', description: 'Colaboración y actitud grupal.', score: 5 }
-  ];
+  const handleSaveData = async (updatedEmployees: Employee[], updatedHistory: SavedEvaluation[]) => {
+    // PROTECCIÓN: Si por algún error los empleados vienen vacíos, abortamos
+    if (updatedEmployees.length === 0) return;
 
-  const handleSelectEmployee = (emp: Employee) => {
-    if (emp.id === currentUser?.id) return alert("No puedes evaluarte a ti mismo.");
-    if (emp.reportsTo === currentUser?.id) {
-      setState({ ...state, step: 'form', selectedEmployeeId: emp.id, currentCriteria: defaultCriteria });
-    } else {
-      alert(`Consulta: ${emp.name} no depende de ti directamente.`);
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employees: updatedEmployees, evaluations: updatedHistory }),
+      });
+      if (!response.ok) throw new Error('Error en el servidor');
+      await fetchData();
+    } catch (e) {
+      alert("Error crítico de sincronización. No se perdieron datos locales.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -70,43 +73,30 @@ const App: React.FC = () => {
       </header>
 
       <nav className="flex justify-center mt-6 gap-4 px-4">
-        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'dashboard' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/40' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><LayoutDashboard size={18}/> Panel</button>
-        <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'organigram' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/40' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><Users size={18}/> Organigrama</button>
-        <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'stats' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/40' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><BarChart3 size={18}/> Estadísticas</button>
+        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'dashboard' ? 'bg-orange-600' : 'bg-slate-900'}`}><LayoutDashboard size={18}/> Panel</button>
+        <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'organigram' ? 'bg-orange-600' : 'bg-slate-900'}`}><Users size={18}/> Organigrama</button>
       </nav>
 
-      <main className="flex-1 pb-20">
+      <main className="flex-1">
         {state.step === 'dashboard' && (
           <Dashboard 
             evaluations={history} employees={employees} currentUser={currentUser} 
-            onQuickStart={(id: string) => setState({ ...state, step: 'form', selectedEmployeeId: id, currentCriteria: defaultCriteria })}
-            onView={(ev: any) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })}
+            onQuickStart={(id) => setState({ ...state, step: 'form', selectedEmployeeId: id })}
+            onView={(ev) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })}
           />
         )}
-        {state.step === 'organigram' && (
-          <div className="p-8 max-w-6xl mx-auto">
-            <h2 className="text-2xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4 tracking-tighter">Organigrama RR Etiquetas</h2>
-            <Organigram employees={employees} onSelectEmployee={handleSelectEmployee} />
-          </div>
-        )}
-        {state.step === 'form' && state.selectedEmployeeId && (
+        {state.step === 'form' && (
           <EvaluationForm 
             employee={employees.find(e => e.id === state.selectedEmployeeId)!} 
-            initialCriteria={state.currentCriteria} 
-            currentUser={currentUser}
-            onComplete={async (criteria: any, analysis: any) => {
-              setIsSaving(true);
-              const newEval = { id: Date.now().toString(), employeeId: state.selectedEmployeeId!, date: new Date().toISOString(), criteria, analysis, evaluatorId: currentUser?.id || '' };
-              await fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employees, evaluations: [newEval, ...history] }) });
-              await fetchData();
-              setState({...state, step: 'dashboard'});
-              setIsSaving(false);
+            onComplete={async (criteria, analysis) => {
+               const newEval = { id: Date.now().toString(), employeeId: state.selectedEmployeeId!, date: new Date().toISOString(), criteria, analysis, evaluatorId: currentUser?.id || '' };
+               await handleSaveData(employees, [newEval, ...history]);
+               setState({...state, step: 'dashboard'});
             }}
             onCancel={() => setState({...state, step: 'dashboard'})}
           />
         )}
         {state.step === 'report' && <AnalysisView employee={employees.find(e => e.id === state.selectedEmployeeId)!} criteria={state.currentCriteria} analysis={state.analysis} onReset={() => setState({...state, step: 'dashboard'})} />}
-        {state.step === 'stats' && <div className="p-20 text-center opacity-30 font-black uppercase tracking-widest text-2xl">Módulo de Estadísticas ISO 9001</div>}
       </main>
 
       {isSaving && (
