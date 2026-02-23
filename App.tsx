@@ -120,7 +120,7 @@ const App: React.FC = () => {
           const an = typeof ev.analysis === 'string' ? JSON.parse(ev.analysis) : ev.analysis;
           setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeid, currentCriteria: crit, analysis: an });
         }} />}
-        {state.step === 'organigram' && <div className="p-8 max-w-6xl mx-auto"><Organigram employees={employees} onSelectEmployee={(emp: any) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id })} /></div>}
+        {state.step === 'organigram' && <div className="p-8 max-w-6xl mx-auto"><Organigram employees={employees} currentUser={currentUser} onSelectEmployee={(emp: any) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id })} /></div>}
         {state.step === 'form' && state.selectedEmployeeId && (
           <EvaluationForm
             employee={employees.find(e => e.id === state.selectedEmployeeId)!}
