@@ -9,6 +9,7 @@ export const EvaluationForm = ({ employee, initialCriteria, currentUser, onUpdat
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-8 pb-32 animate-fade-in">
+      {/* Cabezal: Información del Colaborador */}
       <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 flex justify-between items-start shadow-2xl">
         <div>
           <p className="text-orange-500 font-black text-3xl uppercase tracking-tighter leading-none mb-2">{employee.name}</p>
@@ -22,11 +23,14 @@ export const EvaluationForm = ({ employee, initialCriteria, currentUser, onUpdat
         )}
       </div>
 
+      {/* Lista de Criterios: Estructura Vertical */}
       <div className="space-y-10">
         {criteria.map((c, idx) => (
           <div key={c.id} className="bg-slate-900 p-6 sm:p-10 rounded-[2.5rem] border border-slate-800 relative shadow-lg">
-            <h4 className="text-[16px] font-black text-white uppercase mb-10 border-b border-slate-800 pb-4">{c.name}</h4>
-            <div className="space-y-12">
+            <h4 className="text-[16px] font-black text-white uppercase mb-10 border-b border-slate-800 pb-4 tracking-widest">{c.name}</h4>
+            
+            <div className="flex flex-col gap-12">
+              {/* BLOQUE DE PUNTAJE (Superior) */}
               <div className="space-y-6 bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50">
                 <div className="flex justify-between items-center mb-2">
                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Puntaje</span>
@@ -38,8 +42,13 @@ export const EvaluationForm = ({ employee, initialCriteria, currentUser, onUpdat
                   setCriteria(newC);
                 }} />
               </div>
+
+              {/* BLOQUE DE EVIDENCIA (Inferior) */}
               <div className="space-y-3">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Evidencia ISO 9001</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Evidencia ISO 9001</span>
+                  <span className="text-[10px] font-bold text-slate-700">{c.feedback?.length || 0} / 500</span>
+                </div>
                 <textarea 
                   value={c.feedback || ''}
                   onChange={(e) => {
@@ -47,8 +56,8 @@ export const EvaluationForm = ({ employee, initialCriteria, currentUser, onUpdat
                     newC[idx].feedback = e.target.value;
                     setCriteria(newC);
                   }}
-                  placeholder="Comentarios opcionales..."
-                  className="w-full h-32 bg-slate-950 border border-slate-800 rounded-[2rem] p-6 text-slate-300 text-sm outline-none resize-none"
+                  placeholder="Escriba aquí los hechos observados..."
+                  className="w-full h-36 bg-slate-950 border border-slate-800 rounded-[2rem] p-6 text-slate-300 text-sm outline-none resize-none shadow-inner transition-all focus:border-orange-500/50"
                 />
               </div>
             </div>
