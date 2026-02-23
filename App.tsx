@@ -31,66 +31,52 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // FUNCIÓN PARA CARGAR DATOS
   const fetchData = async () => {
     try {
       const response = await fetch('/api/data');
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
       const data = await response.json();
 
       if (!data.employees || data.employees.length === 0) {
         setEmployees(INITIAL_EMPLOYEES);
         setDepartments(DEPARTMENTS);
-        setHistory([]);
       } else {
-        // Parseo de datos desde PostgreSQL (manejo de JSON strings)
-        setEmployees(data.employees.map((e: any) => ({
-          ...e, 
-          additionalRoles: e.additionalroles ? (typeof e.additionalroles === 'string' ? JSON.parse(e.additionalroles) : e.additionalroles) : [] 
-        })));
+        // NORMALIZACIÓN DE DATOS: Esto arregla tu problema de las 2das funciones
+        const normalizedEmployees = data.employees.map((e: any) => ({
+          id: e.id,
+          name: e.name,
+          department: e.department,
+          jobTitle: e.jobTitle || e.jobtitle,
+          reportsTo: e.reportsTo || e.reportsto,
+          averageScore: e.averageScore || e.averagescore,
+          additionalRoles: e.additionalRoles || e.additionalroles || []
+        }));
         
-        // Mapeo simple para departamentos
-        setDepartments(data.departments.map((d: any) => d.name));
-
-        // Parseo de historial y criterios
-        setHistory(data.evaluations.map((e: any) => ({
-          ...e, 
-          criteria: e.responses ? (typeof e.responses === 'string' ? JSON.parse(e.responses) : e.responses) : [], 
-          analysis: e.analysis ? (typeof e.analysis === 'string' ? JSON.parse(e.analysis) : e.analysis) : null 
-        })));
+        setEmployees(normalizedEmployees);
+        setDepartments(data.departments.map((d: any) => typeof d === 'string' ? d : d.name));
+        setHistory(data.evaluations || []);
       }
     } catch (error) {
-      console.error('Error cargando datos, usando constantes:', error);
+      console.error('Error cargando datos:', error);
       setEmployees(INITIAL_EMPLOYEES);
       setDepartments(DEPARTMENTS);
-      setHistory([]);
     } finally {
       setIsDataLoaded(true);
     }
   };
 
-  // FUNCIÓN PARA GUARDAR DATOS (POST)
   const saveData = async (dataToSave: { employees: Employee[], departments: Department[], evaluations: SavedEvaluation[] }) => {
     setIsSaving(true);
-    setError(null);
     try {
       const response = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSave),
       });
-      
-      if (!response.ok) {
-        throw new Error('El servidor no pudo guardar los cambios.');
-      }
-      
-      // Recargar para confirmar que lo que vemos es lo que está en la DB
+      if (!response.ok) throw new Error('Error al guardar');
       await fetchData(); 
     } catch (error) {
-      console.error('Error saving data:', error);
-      setError('Error de conexión: No se pudo guardar en el servidor.');
+      setError('No se pudo sincronizar con la base de datos.');
     } finally {
       setIsSaving(false);
     }
@@ -106,7 +92,6 @@ const App: React.FC = () => {
 
   const handleSelectEmployee = async (employee: Employee) => {
     setIsLoading(true);
-    setError(null);
     try {
       const criteria = await generateIsoCriteria(employee);
       setState(prev => ({
@@ -116,7 +101,7 @@ const App: React.FC = () => {
         step: 'evaluating'
       }));
     } catch (e) {
-      setError("Error al conectar con el servidor de IA.");
+      setError("Error IA.");
     } finally {
       setIsLoading(false);
     }
@@ -141,7 +126,6 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
       const analysis = await analyzeEvaluation(selectedEmployee, state.currentCriteria);
-      
       const completedEvaluation: SavedEvaluation = {
         id: Date.now().toString(),
         date: new Date().toISOString(),
@@ -150,49 +134,14 @@ const App: React.FC = () => {
         criteria: state.currentCriteria,
         analysis: analysis
       };
-
       const newHistory = [completedEvaluation, ...history];
-      
-      const empHistory = newHistory.filter(h => h.employeeId === selectedEmployee.id);
-      const totalScore = empHistory.reduce((acc, h) => {
-        const avg = h.criteria.reduce((sum, c) => sum + c.score, 0) / h.criteria.length;
-        return acc + avg;
-      }, 0);
-      
-      const newEmployees = employees.map(e => 
-        e.id === selectedEmployee.id 
-          ? { ...e, averageScore: totalScore / empHistory.length } 
-          : e
-      );
-
-      // Guardado automático al terminar evaluación
-      await saveData({ employees: newEmployees, departments, evaluations: newHistory });
-
+      await saveData({ employees, departments, evaluations: newHistory });
       setState(prev => ({ ...prev, analysis, step: 'report', viewingEvaluatorId: currentUser?.id }));
     } catch (e) {
-      setError("Error generando el reporte con IA.");
+      setError("Error IA.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDeleteEvaluation = async (id: string) => {
-    if (!confirm('¿Seguro que quieres borrar esta evaluación?')) return;
-    
-    const newHistory = history.filter(h => h.id !== id);
-    const newEmployees = employees.map(emp => {
-      const empHistory = newHistory.filter((h: SavedEvaluation) => h.employeeId === emp.id);
-      if (empHistory.length === 0) return { ...emp, averageScore: undefined };
-      
-      const totalScore = empHistory.reduce((acc: number, h: SavedEvaluation) => {
-        const avg = h.criteria.reduce((sum, c) => sum + c.score, 0) / h.criteria.length;
-        return acc + avg;
-      }, 0);
-      
-      return { ...emp, averageScore: totalScore / empHistory.length };
-    });
-
-    await saveData({ employees: newEmployees, departments, evaluations: newHistory });
   };
 
   const handleAdminSave = async (updatedEmployees: Employee[], updatedDepartments: Department[]) => {
@@ -204,224 +153,54 @@ const App: React.FC = () => {
   };
 
   const returnToDashboard = () => {
-    setState({
-      step: 'dashboard',
-      selectedEmployeeId: null,
-      currentCriteria: [],
-      analysis: null,
-    });
+    setState({ step: 'dashboard', selectedEmployeeId: null, currentCriteria: [], analysis: null });
   };
 
-  const renderHeader = () => (
-    <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-sm">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 h-14 sm:h-20 flex items-center justify-between">
-        <div className="flex items-center gap-2 sm:gap-6">
-          <div className="w-16 h-8 sm:w-32 sm:h-16 flex items-center justify-center">
-             <Logo className="w-full h-full" />
-          </div>
-          <div className="min-w-0 border-l border-slate-800 pl-2 sm:pl-6">
-            <h1 className="text-[10px] sm:text-xl font-black text-white leading-none uppercase tracking-tight">
-              Evaluación de<br />Competencias
-            </h1>
-            <p className="text-[6px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-0.5">ISO 9001:2015</p>
-          </div>
-        </div>
-
-        <nav className="hidden lg:flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
-          <button 
-            onClick={() => setState(prev => ({ ...prev, step: 'dashboard' }))}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${state.step === 'dashboard' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-          >
-            <LayoutDashboard size={16} /> Panel
-          </button>
-          <button 
-            onClick={() => setState(prev => ({ ...prev, step: 'organigram' }))}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${state.step === 'organigram' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-          >
-            <Users size={16} /> Organigrama
-          </button>
-          <button 
-            onClick={() => setState(prev => ({ ...prev, step: 'stats' }))}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${state.step === 'stats' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-          >
-            <BarChart3 size={16} /> Estadísticas
-          </button>
-        </nav>
-
-        <div className="flex items-center gap-1 sm:gap-2">
-          <div className="flex lg:hidden items-center gap-1 mr-2 border-r border-slate-800 pr-2">
-            <button 
-              onClick={() => setState(prev => ({ ...prev, step: 'dashboard' }))}
-              className={`p-2 rounded-lg transition-all ${state.step === 'dashboard' ? 'bg-slate-800 text-orange-500' : 'text-slate-500'}`}
-            >
-              <LayoutDashboard size={18} />
-            </button>
-            <button 
-              onClick={() => setState(prev => ({ ...prev, step: 'organigram' }))}
-              className={`p-2 rounded-lg transition-all ${state.step === 'organigram' ? 'bg-slate-800 text-orange-500' : 'text-slate-500'}`}
-            >
-              <Users size={18} />
-            </button>
-          </div>
-
-          <button 
-            onClick={() => setIsAdminOpen(true)}
-            className="p-2 sm:p-3 hover:bg-slate-800 rounded-xl transition-colors text-slate-500 hover:text-white"
-          >
-            <Settings size={20} className="sm:w-[22px] sm:h-[22px]" />
-          </button>
-          <button 
-            onClick={() => {
-              if(confirm('¿Cerrar sesión?')) setIsLoggedIn(false);
-            }}
-            className="p-2 sm:p-3 hover:bg-slate-800 rounded-xl transition-colors text-slate-500 hover:text-red-400"
-            title="Cerrar Sesión"
-          >
-            <LogOut size={20} className="sm:w-[22px] sm:h-[22px]" />
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-
   if (!isLoggedIn) {
-    return (
-      <Login 
-        employees={employees} 
-        onLogin={(user) => {
-          setCurrentUser(user);
-          setIsLoggedIn(true);
-        }} 
-      />
-    );
+    return <Login employees={employees} onLogin={(user) => { setCurrentUser(user); setIsLoggedIn(true); }} />;
   }
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col text-slate-50">
-      {renderHeader()}
+      <header className="bg-slate-900 border-b border-slate-800 h-20 flex items-center px-8 justify-between sticky top-0 z-50">
+        <div className="flex items-center gap-4">
+           <Logo className="w-32" />
+           <div className="border-l border-slate-800 pl-4">
+             <h1 className="text-xl font-black uppercase">Evaluación Competencias</h1>
+           </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <button onClick={() => setState(prev => ({ ...prev, step: 'dashboard' }))} className="p-2 text-slate-400 hover:text-white"><LayoutDashboard /></button>
+          <button onClick={() => setIsAdminOpen(true)} className="p-2 text-slate-400 hover:text-white"><Settings /></button>
+          <button onClick={() => setIsLoggedIn(false)} className="p-2 text-slate-400 hover:text-red-400"><LogOut /></button>
+        </div>
+      </header>
 
       <main className="flex-1">
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-4 mx-auto max-w-7xl mt-4 rounded-xl text-center font-bold">
-            {error}
-          </div>
-        )}
-
-        {state.step === 'dashboard' && (
-          <Dashboard 
-            evaluations={history}
-            employees={employees}
-            currentUser={currentUser}
-            onNew={() => setState(prev => ({ ...prev, step: 'organigram' }))}
-            onView={(ev) => {
-              const emp = employees.find(e => e.id === ev.employeeId);
-              if (emp) {
-                setState({
-                  step: 'report',
-                  selectedEmployeeId: emp.id,
-                  currentCriteria: ev.criteria,
-                  analysis: ev.analysis
-                });
-              }
-            }}
-            onDelete={handleDeleteEvaluation}
-          />
-        )}
-
-        {state.step === 'organigram' && (
-          <div className="py-8 animate-fade-in">
-            <Organigram 
-              employees={employees} 
-              onSelectEmployee={handleSelectEmployee} 
-            />
-          </div>
-        )}
-
+        {error && <div className="bg-red-500/20 text-red-500 p-4 text-center font-bold">{error}</div>}
+        {state.step === 'dashboard' && <Dashboard evaluations={history} employees={employees} currentUser={currentUser} onNew={() => setState(prev => ({ ...prev, step: 'organigram' }))} onView={(ev) => {
+          const emp = employees.find(e => e.id === ev.employeeId);
+          if (emp) setState({ step: 'report', selectedEmployeeId: emp.id, currentCriteria: ev.criteria, analysis: ev.analysis });
+        }} onDelete={() => {}} />}
+        {state.step === 'organigram' && <div className="py-8"><Organigram employees={employees} onSelectEmployee={handleSelectEmployee} /></div>}
         {state.step === 'evaluating' && selectedEmployee && (
-          <div className="max-w-5xl mx-auto py-8 px-4 animate-fade-in">
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <button onClick={returnToDashboard} className="text-slate-400 hover:text-white flex items-center gap-1 text-sm font-medium mb-3 transition-colors">
-                    <ArrowLeft size={16} /> Cancelar
-                </button>
-                <h2 className="text-3xl font-bold text-white">{selectedEmployee.name}</h2>
-                <div className="text-slate-400 text-lg">
-                  <div>{selectedEmployee.jobTitle} • {selectedEmployee.department}</div>
-                </div>
-              </div>
-              <div className="text-right hidden sm:block">
-                <p className="text-xs font-bold text-slate-500 uppercase">ISO 9001:2015</p>
-                <p className="text-xs text-slate-600">Ref: 7.2-COMP</p>
-              </div>
-            </div>
-
-            <div className="bg-slate-900 rounded-3xl shadow-xl overflow-hidden border border-slate-800">
-              {state.currentCriteria.map((criterion) => (
-                <RangeSlider 
-                  key={criterion.id}
-                  label={criterion.name}
-                  description={criterion.description}
-                  value={criterion.score}
-                  onChange={(val) => handleScoreChange(criterion.id, val)}
-                  feedback={criterion.feedback}
-                  onFeedbackChange={(text) => handleFeedbackChange(criterion.id, text)}
-                />
-              ))}
-
-              <div className="p-8 bg-slate-950 border-t border-slate-800 flex justify-end">
-                <button 
-                  onClick={finishEvaluation}
-                  disabled={isLoading || isSaving}
-                  className="bg-orange-600 hover:bg-orange-500 text-white font-bold py-4 px-10 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                >
-                  {isLoading ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={20} />}
-                  Finalizar Evaluación con IA
-                </button>
-              </div>
+          <div className="max-w-5xl mx-auto py-8">
+            <button onClick={returnToDashboard} className="flex items-center gap-2 text-slate-400 mb-4"><ArrowLeft size={16}/> Volver</button>
+            <div className="bg-slate-900 rounded-3xl p-8 border border-slate-800">
+               {state.currentCriteria.map(c => <RangeSlider key={c.id} label={c.name} description={c.description} value={c.score} onChange={v => handleScoreChange(c.id, v)} feedback={c.feedback} onFeedbackChange={t => handleFeedbackChange(c.id, t)} />)}
+               <button onClick={finishEvaluation} className="w-full bg-orange-600 py-4 rounded-xl font-bold mt-8">Finalizar con IA</button>
             </div>
           </div>
         )}
-
-        {state.step === 'report' && state.analysis && selectedEmployee && (
-          <div className="max-w-4xl mx-auto py-8 px-4 animate-fade-in">
-            <div className="mb-6">
-              <button onClick={returnToDashboard} className="text-slate-500 hover:text-white flex items-center gap-1 text-sm font-medium transition-colors">
-                <ArrowLeft size={16} /> Volver al Panel
-              </button>
-            </div>
-            <AnalysisView 
-              employee={selectedEmployee}
-              criteria={state.currentCriteria}
-              analysis={state.analysis}
-              onReset={returnToDashboard}
-              evaluatorId={state.viewingEvaluatorId}
-            />
-          </div>
-        )}
-
-        {state.step === 'stats' && (
-          <div className="p-8 text-center text-slate-500">
-            <BarChart3 size={48} className="mx-auto mb-4 opacity-20" />
-            <h2 className="text-xl font-bold text-white">Estadísticas de Desempeño</h2>
-            <p>Próximamente: Visualización avanzada de cumplimiento ISO 9001.</p>
-          </div>
-        )}
+        {state.step === 'report' && state.analysis && selectedEmployee && <div className="max-w-4xl mx-auto py-8"><AnalysisView employee={selectedEmployee} criteria={state.currentCriteria} analysis={state.analysis} onReset={returnToDashboard} /></div>}
       </main>
 
-      {isAdminOpen && (
-        <AdminPanel 
-          employees={employees} 
-          departments={departments}
-          onClose={() => setIsAdminOpen(false)} 
-          onSave={handleAdminSave}
-        />
-      )}
-
-      {(isLoading || isSaving) && state.step !== 'evaluating' && (
+      {isAdminOpen && <AdminPanel employees={employees} departments={departments} onClose={() => setIsAdminOpen(false)} onSave={handleAdminSave} />}
+      {(isLoading || isSaving) && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4 border border-slate-800">
+          <div className="flex flex-col items-center gap-4">
             <Loader2 className="animate-spin text-orange-500" size={40} />
-            <p className="font-bold text-white">{isSaving ? 'Guardando en la base de datos...' : 'Procesando con IA...'}</p>
+            <p className="text-white font-bold">{isSaving ? 'Guardando en RR Etiquetas...' : 'Analizando...'}</p>
           </div>
         </div>
       )}
