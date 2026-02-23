@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { EvaluationState, Employee, Criterion, SavedEvaluation, Department } from './types';
+import { analyzeEvaluation } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
 import { Organigram } from './components/Organigram';
 import { AdminPanel } from './components/AdminPanel';
@@ -54,20 +55,27 @@ const App: React.FC = () => {
     { id: '4', name: 'Trabajo en Equipo', description: 'Actitud y colaboración grupal.', score: 5, category: 'Actitud' }
   ];
 
+  // Función para iniciar evaluación directa
+  const startDirectEvaluation = (employeeId: string) => {
+    setState({
+      ...state,
+      step: 'form',
+      selectedEmployeeId: employeeId,
+      currentCriteria: defaultCriteria
+    });
+  };
+
   const handleSelectEmployee = (employee: Employee) => {
-    // REGLA DE SEGURIDAD: 
-    // Si el empleado seleccionado NO reporta al usuario actual y NO es un subordinado indirecto...
     if (employee.id === currentUser?.id) {
       alert("No puedes realizar tu propia evaluación.");
       return;
     }
-
-    if (employee.reportsTo !== currentUser?.id) {
-      alert(`No tienes permisos para evaluar a ${employee.name}. Solo puedes evaluar a tu personal directo.`);
-      return;
+    // Verificamos si es subordinado directo para permitir evaluar
+    if (employee.reportsTo === currentUser?.id) {
+        startDirectEvaluation(employee.id);
+    } else {
+        alert(`No tienes permisos para evaluar a ${employee.name}. Solo puedes evaluar a tu personal directo.`);
     }
-
-    setState({ ...state, step: 'form', selectedEmployeeId: employee.id, currentCriteria: defaultCriteria });
   };
 
   const handleSaveData = async (updatedEmployees: Employee[], updatedDepartments: Department[], updatedHistory: SavedEvaluation[]) => {
@@ -120,6 +128,7 @@ const App: React.FC = () => {
           <Dashboard 
             evaluations={history} employees={employees} currentUser={currentUser} 
             onNew={() => setState({ ...state, step: 'organigram' })}
+            onQuickStart={startDirectEvaluation} // Lógica rápida para Pablo
             onView={(ev) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })}
             onDelete={fetchData}
           />
@@ -131,11 +140,7 @@ const App: React.FC = () => {
               <ArrowLeft size={16}/> Volver
             </button>
             <h2 className="text-xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4">Organigrama de la Empresa</h2>
-            {/* AQUÍ PASAMOS TODOS LOS EMPLEADOS PARA VISIBILIDAD TOTAL */}
-            <Organigram 
-              employees={employees} 
-              onSelectEmployee={handleSelectEmployee} 
-            />
+            <Organigram employees={employees} onSelectEmployee={handleSelectEmployee} />
           </div>
         )}
 
