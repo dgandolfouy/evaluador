@@ -27,8 +27,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const { employees, departments, evaluations, settings } = req.body;
 
+      await sql`BEGIN;`;
+
       if (evaluations) {
-        // Borramos evaluaciones primero para evitar conflictos de llave foránea con employees
         await sql`DELETE FROM evaluations;`;
         for (const ev of evaluations) {
           await sql`
@@ -65,19 +66,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (settings) {
-        try {
-          await sql`DELETE FROM settings;`;
-          for (const s of settings) {
-            await sql`INSERT INTO settings (key, value) VALUES (${s.key}, ${typeof s.value === 'string' ? s.value : JSON.stringify(s.value)});`;
-          }
-        } catch (e) {
-          console.error("No se pudo guardar settings", e);
+        await sql`DELETE FROM settings;`;
+        for (const s of settings) {
+          await sql`INSERT INTO settings (key, value) VALUES (${s.key}, ${typeof s.value === 'string' ? s.value : JSON.stringify(s.value)});`;
         }
       }
 
+      await sql`COMMIT;`;
       return res.status(200).json({ success: true });
     } catch (error: any) {
-      console.error(error);
+      await sql`ROLLBACK;`;
+      console.error("Transacción fallida", error);
       return res.status(500).json({ error: "Fallo al guardar", details: error.message });
     }
   }
