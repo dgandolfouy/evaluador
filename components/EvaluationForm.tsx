@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { RangeSlider } from './RangeSlider';
 import { CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react';
 import { analyzeEvaluation } from '../services/geminiService';
+import { Criterion } from '../types';
 
 export const EvaluationForm = ({ employee, onComplete, onCancel }: any) => {
   const [loading, setLoading] = useState(false);
-  const [criteria, setCriteria] = useState([
-    { id: '1', name: 'Productividad y Eficiencia', score: 5, feedback: '' },
-    { id: '2', name: 'Calidad y Cumplimiento ISO', score: 5, feedback: '' },
-    { id: '3', name: 'Seguridad e Higiene RR', score: 5, feedback: '' },
-    { id: '4', name: 'Trabajo en Equipo y Actitud', score: 5, feedback: '' },
-    { id: '5', name: 'Mantenimiento de Puesto/Máquina', score: 5, feedback: '' }
+  const [criteria, setCriteria] = useState<Criterion[]>([
+    { id: '1', name: 'Productividad', score: 5, feedback: '', category: 'Desempeño' },
+    { id: '2', name: 'Calidad ISO', score: 5, feedback: '', category: 'Calidad' },
+    { id: '3', name: 'Seguridad e Higiene', score: 5, feedback: '', category: 'Calidad' },
+    { id: '4', name: 'Trabajo en Equipo', score: 5, feedback: '', category: 'Competencias Blandas' },
+    { id: '5', name: 'Mantenimiento de Puesto', score: 5, feedback: '', category: 'Actitud' }
   ]);
 
   const handleFinish = async () => {
@@ -18,34 +19,48 @@ export const EvaluationForm = ({ employee, onComplete, onCancel }: any) => {
     try {
       const analysis = await analyzeEvaluation(employee, criteria);
       onComplete(criteria, analysis);
-    } catch (e) {
-      onComplete(criteria, null);
+    } catch (error) {
+      console.error("AI Analysis Error:", error);
+      alert("Error al analizar con IA. Se guardará con resumen manual.");
+      onComplete(criteria, {
+        summary: "Registro de evaluación finalizado. Revisión manual pendiente.",
+        strengths: [],
+        weaknesses: [],
+        trainingPlan: ["Atención: Análisis AI falló."],
+        isoComplianceLevel: "Pendiente"
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-10 space-y-10 pb-40 text-white">
+    <div className="max-w-4xl mx-auto p-4 sm:p-10 space-y-8 pb-40 animate-fade-in">
+      {/* Header - Simple and Fixed vertical stack */}
       <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-2xl">
-        <button onClick={onCancel} className="text-slate-500 mb-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:text-white transition-colors">
-          <ArrowLeft size={14}/> Volver al Panel
+        <button onClick={onCancel} className="text-slate-500 mb-4 flex items-center gap-1 text-[10px] font-black uppercase hover:text-white transition-colors">
+          <ArrowLeft size={14} /> Volver
         </button>
-        <h2 className="text-orange-500 font-black text-4xl uppercase tracking-tighter leading-none">{employee.name}</h2>
-        <p className="text-white/60 text-xs font-bold uppercase tracking-widest">{employee.jobTitle}</p>
+        <h2 className="text-orange-500 font-black text-3xl sm:text-5xl uppercase tracking-tighter leading-none mb-2">{employee.name}</h2>
+        <p className="text-white/40 text-[10px] sm:text-xs font-bold uppercase tracking-widest">{employee.jobTitle} • {employee.department}</p>
       </div>
 
-      <div className="space-y-16">
+      {/* Criteria - Strict Vertical Stack */}
+      <div className="space-y-6">
         {criteria.map((c, idx) => (
-          <div key={c.id} className="bg-slate-900 p-10 rounded-[3rem] border border-slate-800 shadow-2xl flex flex-col gap-10">
-            <h4 className="text-2xl font-black text-white uppercase border-b border-slate-800 pb-6 tracking-widest">{c.name}</h4>
-            
-            <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5 shadow-inner">
-              <div className="flex justify-between items-end mb-10">
-                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Puntuación</p>
-                 <p className="text-7xl font-black text-white leading-none tracking-tighter">{c.score}<span className="text-orange-600 text-2xl font-bold ml-1">/10</span></p>
+          <div key={c.id} className="bg-slate-900 p-6 sm:p-10 rounded-[2rem] border border-slate-800 shadow-xl flex flex-col gap-6 sm:gap-8">
+            <div className="border-b border-slate-800 pb-4">
+              <span className="text-[10px] font-black text-orange-500/50 uppercase tracking-widest mb-1 block">{c.category}</span>
+              <h4 className="text-xl font-black text-white uppercase tracking-wider">{c.name}</h4>
+            </div>
+
+            {/* Score Slider Block - Full Width Vertical */}
+            <div className="bg-slate-950 p-6 sm:p-8 rounded-[1.5rem] border border-white/5 space-y-6">
+              <div className="flex justify-between items-end">
+                <p className="text-[10px] font-black text-slate-500 uppercase">Calificación</p>
+                <p className="text-4xl sm:text-5xl font-black text-white">{c.score}<span className="text-orange-600 text-xl ml-1">/10</span></p>
               </div>
-              <div className="w-full px-2">
+              <div className="w-full pt-4">
                 <RangeSlider value={c.score} onChange={(v: number) => {
                   const newC = [...criteria];
                   newC[idx].score = v;
@@ -54,27 +69,46 @@ export const EvaluationForm = ({ employee, onComplete, onCancel }: any) => {
               </div>
             </div>
 
-            <div className="space-y-4 px-4">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Evidencia ISO 9001</span>
-              <textarea 
+            {/* Evidence Block - Below Score */}
+            <div className="flex flex-col gap-3">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">Evidencia ISO 9001</label>
+              <textarea
                 value={c.feedback}
                 onChange={(e) => {
                   const newC = [...criteria];
                   newC[idx].feedback = e.target.value;
                   setCriteria(newC);
                 }}
-                placeholder="Hechos técnicos observados..."
-                className="w-full h-44 bg-slate-950 border border-slate-800 rounded-[2.5rem] p-8 text-white text-lg font-medium outline-none focus:border-orange-600/50 transition-all resize-none shadow-2xl"
+                placeholder="Describa hechos observados o brechas detectadas..."
+                className="w-full h-32 bg-slate-950 border border-slate-800 rounded-[1.5rem] p-6 text-white text-sm outline-none focus:border-orange-600/50 resize-none transition-all shadow-inner"
               />
             </div>
           </div>
         ))}
       </div>
 
-      <button onClick={handleFinish} disabled={loading} className="w-full bg-orange-600 text-white py-10 rounded-[3.5rem] font-black uppercase text-base shadow-2xl hover:bg-orange-500 transition-all active:scale-95 flex items-center justify-center gap-4">
-        {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={32} />}
-        {loading ? 'Generando Reporte Calidad...' : 'Finalizar y Guardar Evaluación'}
-      </button>
+      {/* Action Button - Floating Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-950/80 backdrop-blur-xl border-t border-slate-800 z-50">
+        <div className="max-w-4xl mx-auto">
+          <button
+            onClick={handleFinish}
+            disabled={loading}
+            className="w-full bg-orange-600 text-white py-6 rounded-2xl font-black uppercase text-sm sm:text-base shadow-2xl hover:bg-orange-500 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin" size={24} />
+                <span>Analizando Desempeño...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={24} />
+                <span>Finalizar y Generar Análisis</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
