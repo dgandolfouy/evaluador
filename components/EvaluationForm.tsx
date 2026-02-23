@@ -35,32 +35,32 @@ export const EvaluationForm = ({ employee, onComplete, onCancel }: any) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-10 space-y-8 pb-40 animate-fade-in">
-      {/* Header - Simple and Fixed vertical stack */}
-      <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-2xl">
-        <button onClick={onCancel} className="text-slate-500 mb-4 flex items-center gap-1 text-[10px] font-black uppercase hover:text-white transition-colors">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6 pb-40 animate-fade-in text-slate-200">
+      {/* Header - Compact */}
+      <div className="bg-slate-900 p-6 sm:p-8 rounded-[1.5rem] border border-slate-800 shadow-2xl">
+        <button onClick={onCancel} className="text-slate-500 mb-3 flex items-center gap-1 text-[10px] font-black uppercase hover:text-white transition-colors">
           <ArrowLeft size={14} /> Volver
         </button>
-        <h2 className="text-orange-500 font-black text-3xl sm:text-5xl uppercase tracking-tighter leading-none mb-2">{employee.name}</h2>
-        <p className="text-white/40 text-[10px] sm:text-xs font-bold uppercase tracking-widest">{employee.jobTitle} • {employee.department}</p>
+        <h2 className="text-orange-500 font-black text-3xl sm:text-4xl uppercase tracking-tighter leading-none mb-1">{employee.name}</h2>
+        <p className="text-white/40 text-[10px] sm:text-xs font-bold uppercase tracking-widest">{employee.jobtitle || employee.jobTitle} • {employee.department}</p>
       </div>
 
-      {/* Criteria - Strict Vertical Stack */}
-      <div className="space-y-6">
+      {/* Criteria - More compact vertical stack */}
+      <div className="space-y-4">
         {criteria.map((c, idx) => (
-          <div key={c.id} className="bg-slate-900 p-6 sm:p-10 rounded-[2rem] border border-slate-800 shadow-xl flex flex-col gap-6 sm:gap-8">
-            <div className="border-b border-slate-800 pb-4">
-              <span className="text-[10px] font-black text-orange-500/50 uppercase tracking-widest mb-1 block">{c.category}</span>
-              <h4 className="text-xl font-black text-white uppercase tracking-wider">{c.name}</h4>
+          <div key={c.id} className="bg-slate-900 p-5 sm:p-8 rounded-[1.5rem] border border-slate-800 shadow-xl flex flex-col gap-5 sm:gap-6">
+            <div className="border-b border-slate-800/50 pb-3">
+              <span className="text-[10px] font-black text-orange-500/50 uppercase tracking-widest mb-0.5 block">{c.category}</span>
+              <h4 className="text-lg font-black text-white uppercase tracking-wider">{c.name}</h4>
             </div>
 
-            {/* Score Slider Block - Full Width Vertical */}
-            <div className="bg-slate-950 p-6 sm:p-8 rounded-[1.5rem] border border-white/5 space-y-6">
+            {/* Score Slider Block - Streamlined */}
+            <div className="bg-slate-950/50 p-5 sm:p-6 rounded-[1rem] border border-white/5 space-y-4">
               <div className="flex justify-between items-end">
-                <p className="text-[10px] font-black text-slate-500 uppercase">Calificación</p>
-                <p className="text-4xl sm:text-5xl font-black text-white">{c.score}<span className="text-orange-600 text-xl ml-1">/10</span></p>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight">Calificación</p>
+                <p className="text-3xl sm:text-4xl font-black text-white">{c.score}<span className="text-orange-600 text-base ml-1">/10</span></p>
               </div>
-              <div className="w-full pt-4">
+              <div className="w-full">
                 <RangeSlider value={c.score} onChange={(v: number) => {
                   const newC = [...criteria];
                   newC[idx].score = v;
@@ -69,9 +69,9 @@ export const EvaluationForm = ({ employee, onComplete, onCancel }: any) => {
               </div>
             </div>
 
-            {/* Evidence Block - Below Score */}
-            <div className="flex flex-col gap-3">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">Evidencia ISO 9001</label>
+            {/* Evidence Block - Compact */}
+            <div className="flex flex-col gap-2.5">
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Evidencia ISO 9001 (Auditoría)</label>
               <textarea
                 value={c.feedback}
                 onChange={(e) => {
@@ -79,8 +79,8 @@ export const EvaluationForm = ({ employee, onComplete, onCancel }: any) => {
                   newC[idx].feedback = e.target.value;
                   setCriteria(newC);
                 }}
-                placeholder="Describa hechos observados o brechas detectadas..."
-                className="w-full h-32 bg-slate-950 border border-slate-800 rounded-[1.5rem] p-6 text-white text-sm outline-none focus:border-orange-600/50 resize-none transition-all shadow-inner"
+                placeholder="Describa hechos observados o brechas..."
+                className="w-full h-24 bg-slate-950 border border-slate-800 rounded-[1rem] p-4 text-white text-sm outline-none focus:border-orange-600/50 resize-none transition-all shadow-inner placeholder:opacity-30"
               />
             </div>
           </div>
