@@ -8,15 +8,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { rows: departments } = await sql`SELECT * FROM departments;`;
       const { rows: evaluations } = await sql`SELECT * FROM evaluations;`;
 
-      // Aseguramos que additionalRoles sea un objeto real antes de mandarlo a la App
-      const parsedEmployees = employees.map(emp => ({
-        ...emp,
-        additionalRoles: typeof emp.additionalRoles === 'string' 
-          ? JSON.parse(emp.additionalRoles) 
-          : (emp.additionalRoles || [])
-      }));
+      // PARCHE DE SEGURIDAD: Asegura que additionalRoles sea siempre una lista que la App entienda
+      const fixedEmployees = employees.map(emp => {
+        let roles = [];
+        try {
+          roles = typeof emp.additionalRoles === 'string' 
+            ? JSON.parse(emp.additionalRoles) 
+            : (emp.additionalRoles || []);
+        } catch (e) { roles = []; }
 
-      return res.status(200).json({ employees: parsedEmployees, departments, evaluations });
+        return {
+          ...emp,
+          additionalRoles: Array.isArray(roles) ? roles : []
+        };
+      });
+
+      return res.status(200).json({ employees: fixedEmployees, departments, evaluations });
     } catch (error) {
       return res.status(500).json({ error: "Error de lectura" });
     }
@@ -29,18 +36,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await sql`TRUNCATE TABLE evaluations, employees, departments RESTART IDENTITY CASCADE;`;
 
       for (const dept of departments) {
-        const name = typeof dept === 'object' ? dept.name : dept;
+        const name = typeof dept === 'object' ? dept.name : dept.name || dept;
         await sql`INSERT INTO departments (name) VALUES (${name});`;
       }
 
       for (const emp of employees) {
-        // Guardamos el array de cargos adicionales como JSON puro
+        // Guardamos asegurando que additionalRoles sea un JSON válido
+        const rolesJson = JSON.stringify(Array.isArray(emp.additionalRoles) ? emp.additionalRoles : []);
         await sql`
           INSERT INTO employees (id, name, department, "jobTitle", "reportsTo", "additionalRoles", "averageScore")
           VALUES (
             ${emp.id}, ${emp.name}, ${emp.department}, 
             ${emp.jobTitle || ''}, ${emp.reportsTo || ''}, 
-            ${JSON.stringify(emp.additionalRoles || [])}, 
+            ${rolesJson}, 
             ${emp.averageScore || 0}
           );
         `;
@@ -49,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true });
     } catch (error) {
       await sql`ROLLBACK;`;
-      return res.status(500).json({ error: "Error de guardado" });
+      return res.status(500).json({ error: "Error de guardado profundo" });
     }
   }
 }
