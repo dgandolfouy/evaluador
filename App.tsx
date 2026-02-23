@@ -4,23 +4,20 @@ import { Dashboard } from './components/Dashboard';
 import { Organigram } from './components/Organigram';
 import { EvaluationForm } from './components/EvaluationForm';
 import { AnalysisView } from './components/AnalysisView';
-import { AdminPanel } from './components/AdminPanel';
 import { Login } from './components/Login';
 import { Logo } from './components/Logo';
-import { LayoutDashboard, Users, BarChart3, LogOut, Loader2, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, BarChart3, LogOut, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [history, setHistory] = useState<SavedEvaluation[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [state, setState] = useState<EvaluationState>({ step: 'dashboard', selectedEmployeeId: null, currentCriteria: [], analysis: null });
 
-  // ACCESO TOTAL PARA LOS 4 LÍDERES (Daniel, Cristina, Pablo, Gonzalo)
-  const leaders = ["DANIEL GANDOLFO", "CRISTINA GARCIA", "PABLO CANDIA", "GONZALO VIÑAS"];
-  const isLeader = currentUser && leaders.includes(currentUser.name.toUpperCase());
+  const superUsers = ["DANIEL GANDOLFO", "CRISTINA GARCIA", "PABLO CANDIA", "GONZALO VIÑAS"];
+  const isSuper = currentUser && superUsers.includes(currentUser.name.toUpperCase());
 
   const fetchData = async () => {
     try {
@@ -28,23 +25,23 @@ const App: React.FC = () => {
       const data = await response.json();
       if (data.employees) setEmployees(data.employees);
       if (data.evaluations) setHistory(data.evaluations);
-    } catch (e) { console.error("Error al conectar con Neon"); }
+    } catch (e) { console.error("Error Neon"); }
   };
 
   useEffect(() => { fetchData(); }, []);
 
-  // GUARDADO AJUSTADO A TUS COLUMNAS DE NEON (image_d44cd6)
-  const handleSaveEvaluation = async (criteria: any, analysis: any) => {
+  const handleComplete = async (criteria: any, analysis: any) => {
     setIsSaving(true);
-    const totalScore = criteria.reduce((acc: number, c: any) => acc + c.score, 0) / criteria.length;
+    const total = criteria.reduce((acc: number, c: any) => acc + c.score, 0) / criteria.length;
     
+    // Mapeo exacto a tus columnas de Neon
     const newEval = { 
       id: Date.now().toString(), 
-      employeeid: state.selectedEmployeeId, // Columna exacta en Neon
-      evaluatorid: currentUser?.id || '1', // Columna exacta en Neon
+      employeeid: state.selectedEmployeeId, 
+      evaluatorid: currentUser?.id || '1', 
       date: new Date().toISOString(), 
       criteria: JSON.stringify(criteria), 
-      finalscore: totalScore, // Columna exacta en Neon
+      finalscore: total, 
       analysis: JSON.stringify(analysis) 
     };
 
@@ -56,11 +53,7 @@ const App: React.FC = () => {
       });
       await fetchData();
       setState({ ...state, step: 'dashboard' });
-    } catch (e) {
-      alert("Error al guardar. Verifique la consola de Neon.");
-    } finally {
-      setIsSaving(false);
-    }
+    } finally { setIsSaving(false); }
   };
 
   if (!isLoggedIn) return <Login employees={employees} onLogin={(u) => { setCurrentUser(u); setIsLoggedIn(true); }} />;
@@ -70,33 +63,25 @@ const App: React.FC = () => {
       <header className="bg-slate-900 border-b border-slate-800 h-28 flex items-center px-12 justify-between sticky top-0 z-50">
         <Logo className="w-44" />
         <div className="flex items-center gap-6">
-          <div className="text-right">
-            <p className="text-[10px] font-black text-orange-500 uppercase">{currentUser?.jobTitle}</p>
-            <p className="text-sm font-bold">{currentUser?.name}</p>
-          </div>
-          {isLeader && <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500"><Settings size={22} /></button>}
+          <div className="text-right"><p className="text-[10px] font-black text-orange-500 uppercase">{currentUser?.jobTitle}</p><p className="text-sm font-bold">{currentUser?.name}</p></div>
           <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500"><LogOut size={22} /></button>
         </div>
       </header>
 
-      {/* NAVEGACIÓN PERMANENTE PARA LÍDERES */}
-      {isLeader && (
-        <nav className="flex justify-center mt-6 gap-4 px-4">
-          <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase ${state.step === 'dashboard' ? 'bg-orange-600' : 'bg-slate-900'}`}><LayoutDashboard size={18} className="inline mr-2"/> Panel</button>
-          <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase ${state.step === 'organigram' ? 'bg-orange-600' : 'bg-slate-900'}`}><Users size={18} className="inline mr-2"/> Organigrama</button>
-          <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase ${state.step === 'stats' ? 'bg-orange-600' : 'bg-slate-900'}`}><BarChart3 size={18} className="inline mr-2"/> Estadísticas</button>
-        </nav>
-      )}
+      <nav className="flex justify-center mt-6 gap-4 px-4">
+        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'dashboard' ? 'bg-orange-600' : 'bg-slate-900'}`}><LayoutDashboard size={18}/> Panel</button>
+        <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'organigram' ? 'bg-orange-600' : 'bg-slate-900'}`}><Users size={18}/> Organigrama</button>
+        <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'stats' ? 'bg-orange-600' : 'bg-slate-900'}`}><BarChart3 size={18}/> Estadísticas</button>
+      </nav>
 
       <main className="flex-1">
-        {state.step === 'dashboard' && <Dashboard evaluations={history} employees={employees} currentUser={currentUser} onQuickStart={(id:string) => setState({ ...state, step: 'form', selectedEmployeeId: id })} onView={(ev:any) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeId || ev.employeeid, currentCriteria: typeof ev.criteria === 'string' ? JSON.parse(ev.criteria) : ev.criteria, analysis: typeof ev.analysis === 'string' ? JSON.parse(ev.analysis) : ev.analysis })} />}
+        {state.step === 'dashboard' && <Dashboard evaluations={history} employees={employees} currentUser={currentUser} onQuickStart={(id:string) => setState({ ...state, step: 'form', selectedEmployeeId: id })} onView={(ev:any) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeid, currentCriteria: JSON.parse(ev.criteria), analysis: JSON.parse(ev.analysis) })} />}
         {state.step === 'organigram' && <div className="p-8 max-w-6xl mx-auto"><Organigram employees={employees} onSelectEmployee={(emp:any) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id })} /></div>}
-        {state.step === 'form' && state.selectedEmployeeId && <EvaluationForm employee={employees.find(e => e.id === state.selectedEmployeeId)!} onComplete={handleSaveEvaluation} onCancel={() => setState({...state, step: 'dashboard'})} />}
+        {state.step === 'form' && state.selectedEmployeeId && <EvaluationForm employee={employees.find(e => e.id === state.selectedEmployeeId)!} onComplete={handleComplete} onCancel={() => setState({...state, step: 'dashboard'})} />}
         {state.step === 'report' && <AnalysisView employee={employees.find(e => e.id === state.selectedEmployeeId)!} criteria={state.currentCriteria} analysis={state.analysis} onReset={() => setState({...state, step: 'dashboard'})} />}
       </main>
 
-      {isAdminOpen && <AdminPanel employees={employees} onClose={() => setIsAdminOpen(false)} onSave={fetchData} />}
-      {isSaving && <div className="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center"><Loader2 className="animate-spin text-orange-500 mb-4" size={48} /><p className="font-black uppercase text-xs">Sincronizando con Neon...</p></div>}
+      {isSaving && <div className="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center"><Loader2 className="animate-spin text-orange-500 mb-4" size={48} /><p className="font-black uppercase text-xs">Guardando en Neon...</p></div>}
     </div>
   );
 };
