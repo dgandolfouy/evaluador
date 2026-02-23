@@ -27,27 +27,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const { employees, departments, evaluations, settings } = req.body;
 
-      if (employees) {
-        await sql`DELETE FROM employees;`;
-        for (const emp of employees) {
-          await sql`
-            INSERT INTO employees (id, name, department, jobtitle, reportsto, additionalroles, averagescore)
-            VALUES (${emp.id}, ${emp.name}, ${emp.department}, ${emp.jobtitle || emp.jobTitle || ''}, ${emp.reportsto || emp.reportsTo || ''}, ${JSON.stringify(emp.additionalroles || emp.additionalRoles || [])}, ${emp.averagescore || emp.averageScore || 0});
-          `;
-        }
-      }
-
-      if (departments) {
-        await sql`DELETE FROM departments;`;
-        for (const dept of departments) {
-          const dName = typeof dept === 'string' ? dept : dept.name;
-          if (dName) await sql`INSERT INTO departments (name) VALUES (${dName});`;
-        }
-      }
-
       if (evaluations) {
-        // Para evaluaciones usamos INSERT individual sin borrar todo (o borrar según id)
-        // Por simplicidad en esta 'cirugía', si vienen todas, borramos y reinsertamos
+        // Borramos evaluaciones primero para evitar conflictos de llave foránea con employees
         await sql`DELETE FROM evaluations;`;
         for (const ev of evaluations) {
           await sql`
@@ -61,6 +42,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               ${ev.finalscore || ev.finalScore}, 
               ${typeof ev.analysis === 'string' ? ev.analysis : JSON.stringify(ev.analysis || {})}
             );
+          `;
+        }
+      }
+
+      if (departments) {
+        await sql`DELETE FROM departments;`;
+        for (const dept of departments) {
+          const dName = typeof dept === 'string' ? dept : dept.name;
+          if (dName) await sql`INSERT INTO departments (name) VALUES (${dName});`;
+        }
+      }
+
+      if (employees) {
+        await sql`DELETE FROM employees;`;
+        for (const emp of employees) {
+          await sql`
+            INSERT INTO employees (id, name, department, jobtitle, reportsto, additionalroles, averagescore)
+            VALUES (${emp.id}, ${emp.name}, ${emp.department}, ${emp.jobtitle || emp.jobTitle || ''}, ${emp.reportsto || emp.reportsTo || ''}, ${JSON.stringify(emp.additionalroles || emp.additionalRoles || [])}, ${emp.averagescore || emp.averageScore || 0});
           `;
         }
       }
