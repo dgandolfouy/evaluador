@@ -34,6 +34,7 @@ const App: React.FC = () => {
         setEmployees(data.employees.map((e: any) => ({
           ...e,
           jobTitle: e.jobTitle || e.jobtitle,
+          reportsTo: e.reportsTo || e.reportsto,
           additionalRoles: e.additionalRoles || e.additionalroles || []
         })));
         setDepartments(data.departments.map((d: any) => typeof d === 'string' ? d : d.name));
@@ -47,12 +48,12 @@ const App: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // CRITERIOS CON PUNTAJE INICIAL EN 0
+  // CRITERIOS QUE EMPIEZAN EN 5 PARA AGILIDAD
   const defaultCriteria: Criterion[] = [
-    { id: '1', name: 'Productividad', description: '', score: 0, category: 'Producción' },
-    { id: '2', name: 'Calidad del Trabajo', description: '', score: 0, category: 'Calidad' },
-    { id: '3', name: 'Seguridad e Higiene', description: '', score: 0, category: 'Normativa' },
-    { id: '4', name: 'Trabajo en Equipo', description: '', score: 0, category: 'Actitud' }
+    { id: '1', name: 'Productividad', description: 'Capacidad para cumplir con los volúmenes de producción y tiempos estipulados.', score: 5, category: 'Producción' },
+    { id: '2', name: 'Calidad del Trabajo', description: 'Atención al detalle y cumplimiento de estándares técnicos para evitar descartes.', score: 5, category: 'Calidad' },
+    { id: '3', name: 'Seguridad e Higiene', description: 'Uso correcto de EPP y mantenimiento del orden según normas ISO 9001.', score: 5, category: 'Normativa' },
+    { id: '4', name: 'Trabajo en Equipo', description: 'Colaboración activa con el resto del personal y actitud frente a las tareas.', score: 5, category: 'Actitud' }
   ];
 
   const handleSaveData = async (updatedEmployees: Employee[], updatedDepartments: Department[], updatedHistory: SavedEvaluation[]) => {
@@ -72,19 +73,23 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col text-slate-50 font-sans">
       
-      {/* HEADER: Solo Logo y Botones */}
+      {/* HEADER: Aire arriba y abajo, solo logo y botones */}
       <header className="bg-slate-900 border-b border-slate-800 h-24 sm:h-32 flex items-center px-6 sm:px-12 justify-between sticky top-0 z-50">
         <div className="flex items-center">
            <Logo className="w-28 sm:w-44" /> 
         </div>
         
-        <div className="flex items-center gap-3">
-          <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500 shadow-lg"><Settings size={22} /></button>
-          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500"><LogOut size={22} /></button>
+        <div className="flex items-center gap-4">
+          <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500 shadow-lg hover:bg-slate-700 transition-colors">
+            <Settings size={22} />
+          </button>
+          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 hover:bg-red-900/30 transition-colors">
+            <LogOut size={22} />
+          </button>
         </div>
       </header>
 
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-24 lg:pb-8">
         {state.step === 'dashboard' && (
           <Dashboard 
             evaluations={history} employees={employees} currentUser={currentUser} 
@@ -96,8 +101,13 @@ const App: React.FC = () => {
 
         {state.step === 'organigram' && (
           <div className="p-6 max-w-6xl mx-auto">
-            <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-6 p-3 bg-slate-900 rounded-2xl text-slate-400 border border-slate-800 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest"><ArrowLeft size={16}/> Volver</button>
-            <Organigram employees={employees} onSelectEmployee={(emp) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id, currentCriteria: defaultCriteria })} />
+            <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-8 p-3 bg-slate-900 rounded-2xl text-slate-400 border border-slate-800 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest hover:text-white transition-all">
+              <ArrowLeft size={16}/> Volver al Panel
+            </button>
+            <Organigram 
+              employees={employees} 
+              onSelectEmployee={(emp) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id, currentCriteria: defaultCriteria })} 
+            />
           </div>
         )}
 
@@ -116,7 +126,7 @@ const App: React.FC = () => {
       </main>
 
       {/* NAV INFERIOR MOBILE */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 px-12 py-5 flex justify-between items-center z-[60]">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 px-12 py-5 flex justify-between items-center z-[60] shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
         <button onClick={() => setState({ ...state, step: 'dashboard' })} className={state.step === 'dashboard' ? 'text-orange-500' : 'text-slate-500'}><LayoutDashboard size={30} /></button>
         <button onClick={() => setState({ ...state, step: 'organigram' })} className={state.step === 'organigram' ? 'text-orange-500' : 'text-slate-500'}><Users size={30} /></button>
       </nav>
