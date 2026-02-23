@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Employee, Criterion } from '../types';
-import { Plus, Trash2, CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
 import { RangeSlider } from './RangeSlider';
 import { analyzeEvaluation } from '../services/geminiService';
 
@@ -15,29 +15,27 @@ export const EvaluationForm = ({ employee, initialCriteria, onComplete, onCancel
       onComplete(criteria, analysis);
     } catch (e) {
       onComplete(criteria, null);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6 pb-32 animate-fade-in">
-      <div className="bg-slate-900/50 p-8 rounded-[2rem] border border-slate-800 shadow-xl">
-        <button onClick={onCancel} className="text-slate-500 mb-4 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"><ArrowLeft size={14}/> Volver</button>
-        <p className="text-orange-500 font-black text-3xl uppercase tracking-tighter leading-none mb-2">{employee.name}</p>
-        <p className="text-slate-400 text-xs font-bold uppercase">{employee.jobTitle} • {employee.department}</p>
+    <div className="max-w-5xl mx-auto p-6 space-y-8 pb-32">
+      <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl">
+        <p className="text-orange-500 font-black text-3xl uppercase tracking-tighter mb-1">{employee.name}</p>
+        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">{employee.jobTitle} • {employee.department}</p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-8">
         {criteria.map((c, idx) => (
-          <div key={c.id} className="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-sm transition-all hover:border-slate-700">
-            <h4 className="text-[12px] font-black text-white uppercase tracking-widest mb-8 border-b border-slate-800 pb-2">{c.name}</h4>
+          <div key={c.id} className="bg-slate-900 p-8 rounded-[3rem] border border-slate-800">
+            <h4 className="text-[14px] font-black text-white uppercase tracking-[0.2em] mb-10 border-b border-slate-800 pb-4">{c.name}</h4>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <div className="flex justify-between items-end mb-4">
-                   <span className="text-xs font-bold text-slate-500 uppercase">Puntuación</span>
-                   <span className="text-3xl font-black text-white">{c.score}<span className="text-slate-700 text-lg">/10</span></span>
+            <div className="flex flex-col gap-10">
+              {/* PUNTAJE */}
+              <div className="space-y-6">
+                <div className="flex justify-between items-end">
+                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nivel de desempeño</span>
+                   <span className="text-4xl font-black text-white">{c.score}<span className="text-slate-700 text-xl">/10</span></span>
                 </div>
                 <RangeSlider 
                   value={c.score} 
@@ -47,18 +45,11 @@ export const EvaluationForm = ({ employee, initialCriteria, onComplete, onCancel
                     setCriteria(newC);
                   }} 
                 />
-                <div className="flex justify-between mt-2 text-[9px] font-bold text-slate-600 uppercase tracking-widest">
-                  <span>Deficiente</span>
-                  <span>Sobresaliente</span>
-                </div>
               </div>
 
-              {/* ESTE ES EL CAMBIO: Cuadro de texto funcional */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Evidencia ISO 9001</span>
-                  <span className="text-[10px] font-bold text-slate-700">{c.feedback?.length || 0}/500</span>
-                </div>
+              {/* EVIDENCIA */}
+              <div className="space-y-3">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Evidencia ISO 9001 (Hechos observados)</span>
                 <textarea 
                   value={c.feedback || ''}
                   onChange={(e) => {
@@ -66,8 +57,8 @@ export const EvaluationForm = ({ employee, initialCriteria, onComplete, onCancel
                     newC[idx].feedback = e.target.value;
                     setCriteria(newC);
                   }}
-                  placeholder="Describa hechos, datos o situaciones observadas..."
-                  className="w-full h-32 bg-slate-950 border border-slate-800 rounded-2xl p-4 text-slate-300 text-xs outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all resize-none"
+                  placeholder="Escriba aquí los datos concretos de la evaluación..."
+                  className="w-full h-32 bg-slate-950 border border-slate-800 rounded-2xl p-4 text-slate-300 text-sm outline-none focus:border-orange-500 transition-all resize-none shadow-inner"
                 />
               </div>
             </div>
@@ -75,11 +66,11 @@ export const EvaluationForm = ({ employee, initialCriteria, onComplete, onCancel
         ))}
       </div>
 
-      <div className="flex gap-4 pt-8">
-        <button onClick={onCancel} className="flex-1 bg-slate-900 text-slate-400 py-5 rounded-3xl font-black uppercase text-xs border border-slate-800 hover:text-white transition-all">Cancelar</button>
-        <button onClick={handleFinish} disabled={loading} className="flex-[2] bg-orange-600 text-white py-5 rounded-3xl font-black uppercase text-xs shadow-xl shadow-orange-900/40 flex items-center justify-center gap-3 hover:bg-orange-500 transition-all disabled:opacity-50">
-          {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={20} />}
-          {loading ? 'Generando Informe IA...' : 'Finalizar Evaluación'}
+      <div className="flex gap-4 pt-10">
+        <button onClick={onCancel} className="flex-1 bg-slate-900 text-slate-500 py-6 rounded-3xl font-black uppercase text-xs border border-slate-800">Cancelar</button>
+        <button onClick={handleFinish} disabled={loading} className="flex-[2] bg-orange-600 text-white py-6 rounded-3xl font-black uppercase text-xs shadow-2xl flex items-center justify-center gap-3 disabled:opacity-50">
+          {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={24} />}
+          {loading ? 'Analizando...' : 'Finalizar Evaluación'}
         </button>
       </div>
     </div>
