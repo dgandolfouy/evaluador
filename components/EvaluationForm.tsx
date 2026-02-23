@@ -4,9 +4,9 @@ import { CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react';
 import { analyzeEvaluation } from '../services/geminiService';
 import { Criterion } from '../types';
 
-export const EvaluationForm = ({ employee, onComplete, onCancel }: any) => {
+export const EvaluationForm = ({ employee, initialCriteria, onComplete, onCancel }: any) => {
   const [loading, setLoading] = useState(false);
-  const [criteria, setCriteria] = useState<Criterion[]>([
+  const [criteria, setCriteria] = useState<Criterion[]>(initialCriteria || [
     { id: '1', name: 'Productividad', score: 5, feedback: '', category: 'Desempeño' },
     { id: '2', name: 'Calidad ISO', score: 5, feedback: '', category: 'Calidad' },
     { id: '3', name: 'Seguridad e Higiene', score: 5, feedback: '', category: 'Calidad' },
@@ -35,7 +35,7 @@ export const EvaluationForm = ({ employee, onComplete, onCancel }: any) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6 pb-40 animate-fade-in text-slate-200">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6 pb-64 animate-fade-in text-slate-200">
       {/* Header - Compact */}
       <div className="bg-slate-900 p-6 sm:p-8 rounded-[1.5rem] border border-slate-800 shadow-2xl">
         <button onClick={onCancel} className="text-slate-500 mb-3 flex items-center gap-1 text-[10px] font-black uppercase hover:text-white transition-colors">
