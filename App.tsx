@@ -37,7 +37,7 @@ const App: React.FC = () => {
     setIsSaving(true);
     const total = criteria.reduce((acc: number, c: any) => acc + c.score, 0) / criteria.length;
     
-    // Mapeo a minúsculas para Neon
+    // Mapeo exacto a columnas Neon
     const newEval = { 
       id: Date.now().toString(), 
       employeeid: String(state.selectedEmployeeId), 
@@ -59,7 +59,7 @@ const App: React.FC = () => {
         setState({ ...state, step: 'dashboard' });
       }
     } catch (e) {
-      alert("Error de guardado.");
+      alert("Error Neon");
     } finally {
       setIsSaving(false);
     }
@@ -83,9 +83,9 @@ const App: React.FC = () => {
 
       {isSuper && (
         <nav className="flex justify-center mt-6 gap-4 px-4">
-          <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'dashboard' ? 'bg-orange-600 shadow-lg shadow-orange-900/40' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><LayoutDashboard size={18}/> Panel</button>
-          <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'organigram' ? 'bg-orange-600 shadow-lg shadow-orange-900/40' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><Users size={18}/> Organigrama</button>
-          <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'stats' ? 'bg-orange-600 shadow-lg shadow-orange-900/40' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><BarChart3 size={18}/> Estadísticas</button>
+          <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'dashboard' ? 'bg-orange-600' : 'bg-slate-900'}`}><LayoutDashboard size={18}/> Panel</button>
+          <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'organigram' ? 'bg-orange-600' : 'bg-slate-900'}`}><Users size={18}/> Organigrama</button>
+          <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 ${state.step === 'stats' ? 'bg-orange-600' : 'bg-slate-900'}`}><BarChart3 size={18}/> Estadísticas</button>
         </nav>
       )}
 
@@ -101,7 +101,7 @@ const App: React.FC = () => {
       </main>
 
       {isAdminOpen && <AdminPanel employees={employees} onClose={() => setIsAdminOpen(false)} onSave={fetchData} />}
-      {isSaving && <div className="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center"><Loader2 className="animate-spin text-orange-500 mb-4" size={48} /><p className="font-black uppercase text-xs tracking-widest leading-none">Sincronizando con Neon...</p></div>}
+      {isSaving && <div className="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center"><Loader2 className="animate-spin text-orange-500 mb-4" size={48} /><p className="font-black uppercase text-xs">Sincronizando con Neon...</p></div>}
     </div>
   );
 };
