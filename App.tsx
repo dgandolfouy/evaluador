@@ -79,6 +79,7 @@ const App: React.FC = () => {
       setHistory(updatedHistory);
       setState({ ...state, step: 'dashboard' });
       setIsSaving(false);
+      
       const employee = employees.find(e => e.id === empId)!;
       analyzeEvaluation(employee, criteria).then(async (analysis) => {
         const finalHistory = updatedHistory.map(ev => ev.id === newEval.id ? { ...ev, analysis } : ev);
@@ -106,10 +107,27 @@ const App: React.FC = () => {
             <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{currentUser?.jobTitle}</p>
             <p className="text-xs font-bold text-white uppercase">{currentUser?.name}</p>
           </div>
-          <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500"><Settings size={22} /></button>
-          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500"><LogOut size={22} /></button>
+          <button onClick={() => setIsAdminOpen(true)} className="p-3 bg-slate-800 rounded-2xl text-orange-500 shadow-lg hover:bg-slate-700 transition-all">
+            <Settings size={22} />
+          </button>
+          <button onClick={() => setIsLoggedIn(false)} className="p-3 bg-red-950/20 rounded-2xl text-red-500 hover:bg-red-900/30 transition-all">
+            <LogOut size={22} />
+          </button>
         </div>
       </header>
+
+      {/* NAVEGACIÓN SUPERIOR: Panel, Organigrama y Estadísticas */}
+      <nav className="hidden lg:flex max-w-7xl mx-auto mt-6 gap-3 bg-slate-900/50 p-2 rounded-3xl border border-slate-800 shadow-xl">
+        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'dashboard' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+          <LayoutDashboard size={18}/> Panel
+        </button>
+        <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'organigram' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+          <Users size={18}/> Organigrama
+        </button>
+        <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 transition-all ${state.step === 'stats' ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white'}`}>
+          <BarChart3 size={18}/> Estadísticas
+        </button>
+      </nav>
 
       <main className="flex-1 pb-24 lg:pb-8">
         {state.step === 'dashboard' && (
@@ -118,9 +136,24 @@ const App: React.FC = () => {
             onNew={() => setState({ ...state, step: 'organigram' })}
             onQuickStart={handleQuickEvaluation}
             onView={(ev: any) => setState({ step: 'report', selectedEmployeeId: ev.employeeId, currentCriteria: ev.criteria, analysis: ev.analysis })}
-            onDelete={fetchData}
           />
         )}
+
+        {state.step === 'organigram' && (
+          <div className="p-6 max-w-6xl mx-auto">
+            <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-8 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest text-slate-400 hover:text-white transition-all"><ArrowLeft size={16}/> Volver</button>
+            <h2 className="text-xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4 tracking-tight text-white">Organigrama RR Etiquetas</h2>
+            <Organigram 
+              employees={employees} 
+              onSelectEmployee={(emp) => {
+                if (emp.id === currentUser?.id) return alert("No puedes realizar tu propia evaluación.");
+                if (emp.reportsTo === currentUser?.id) handleQuickEvaluation(emp.id);
+                else alert(`Consulta: ${emp.name} no está bajo tu cargo directo.`);
+              }} 
+            />
+          </div>
+        )}
+
         {state.step === 'form' && state.selectedEmployeeId && (
           <EvaluationForm 
             employee={employees.find(e => e.id === state.selectedEmployeeId)!}
@@ -131,6 +164,7 @@ const App: React.FC = () => {
             onCancel={() => setState({...state, step: 'dashboard'})}
           />
         )}
+
         {state.step === 'report' && (
           <div className="p-6 max-w-4xl mx-auto">
             <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-8 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest text-slate-400 hover:text-white transition-all"><ArrowLeft size={16}/> Volver</button>
@@ -139,28 +173,16 @@ const App: React.FC = () => {
             ) : (
               <div className="bg-slate-900 p-20 rounded-[3rem] border border-slate-800 text-center">
                 <Loader2 className="animate-spin text-orange-500 mx-auto mb-4" size={40} />
-                <p className="text-white font-black uppercase text-xs tracking-widest">IA Generando informe cualitativo...</p>
+                <p className="text-white font-black uppercase text-xs tracking-widest leading-relaxed">Analizando desempeño...<br/><span className="text-slate-500 lowercase font-normal">El reporte se genera de fondo para no trabar el sistema.</span></p>
               </div>
             )}
           </div>
         )}
-        {state.step === 'organigram' && (
-          <div className="p-6 max-w-6xl mx-auto">
-            <button onClick={() => setState({...state, step: 'dashboard'})} className="mb-8 flex items-center gap-2 uppercase text-[10px] font-black tracking-widest text-slate-400 hover:text-white transition-all"><ArrowLeft size={16}/> Volver</button>
-            <h2 className="text-xl font-black uppercase mb-8 border-l-4 border-orange-600 pl-4">Organigrama RR</h2>
-            <Organigram employees={employees} onSelectEmployee={(emp) => {
-                if (emp.id === currentUser?.id) return alert("No puedes evaluarte.");
-                if (emp.reportsTo === currentUser?.id) handleQuickEvaluation(emp.id);
-                else alert("Sin permisos.");
-            }} />
-          </div>
+
+        {state.step === 'stats' && (
+          <div className="p-20 text-center opacity-30 font-black uppercase tracking-widest text-white">Módulo de Estadísticas ISO 9001 en Desarrollo</div>
         )}
       </main>
-
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 px-12 py-5 flex justify-between items-center z-[60]">
-        <button onClick={() => setState({ ...state, step: 'dashboard' })} className={state.step === 'dashboard' ? 'text-orange-500' : 'text-slate-500'}><LayoutDashboard size={30} /></button>
-        <button onClick={() => setState({ ...state, step: 'organigram' })} className={state.step === 'organigram' ? 'text-orange-500' : 'text-slate-500'}><Users size={30} /></button>
-      </nav>
 
       {isAdminOpen && <AdminPanel employees={employees} departments={departments} onClose={() => setIsAdminOpen(false)} onSave={fetchData} />}
     </div>
