@@ -7,9 +7,8 @@ async function tryGemini(version: string, model: string, prompt: string, apiKey:
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                contents: [{ parts: [{ text: prompt }] }],
-                // ESTA LÍNEA ES LA MAGIA: Obliga a Gemini a devolver JSON puro siempre
-                generationConfig: { responseMimeType: "application/json" } 
+                contents: [{ parts: [{ text: prompt }] }]
+                // Eliminamos el generationConfig porque tu cleanJson del frontend es mejor
             })
         });
         const data = await response.json();
@@ -23,15 +22,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
     const { prompt } = req.body;
     
-    // Busca la clave se llame como se llame en tu Vercel
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
-    if (!GEMINI_API_KEY) return res.status(500).json({ error: 'Falta la API KEY de Gemini en Vercel' });
+    if (!GEMINI_API_KEY) return res.status(500).json({ error: 'Falta la API KEY de Gemini' });
 
-    // Usamos directamente el modelo Flash que es el más rápido y estable
+    // Nombres exactos actualizados con el sufijo que pide Google y modelo Pro de respaldo
     const combinations = [
-        { v: 'v1beta', m: 'gemini-1.5-flash' },
-        { v: 'v1', m: 'gemini-1.5-flash' }
+        { v: 'v1beta', m: 'gemini-1.5-flash-latest' },
+        { v: 'v1beta', m: 'gemini-1.0-pro-latest' },
+        { v: 'v1', m: 'gemini-1.5-flash-latest' },
+        { v: 'v1', m: 'gemini-1.0-pro-latest' }
     ];
 
     for (const combo of combinations) {
@@ -41,11 +41,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.log(`Éxito con ${combo.v}/${combo.m}`);
             return res.status(200).json(result.data);
         }
-        console.warn(`Fallo con ${combo.v}/${combo.m}:`, result.data);
+        console.warn(`Fallo con ${combo.v}/${combo.m}:`, result.data?.error?.message);
     }
 
     return res.status(500).json({
         error: 'IA Offline',
-        details: 'No se pudo conectar con Gemini.'
+        details: 'Rechazo de API de Google por versión de modelo.'
     });
 }
