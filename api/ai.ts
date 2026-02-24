@@ -15,21 +15,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
     }
 
-    // Usamos v1beta con el sufijo -latest para máxima compatibilidad
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+    // Regresamos a v1 con gemini-1.5-flash (sin el sufijo -latest que falló en v1beta)
+    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.7, // Subimos un poco para evitar respuestas vacías en v1beta
-                    topP: 0.95,
-                    topK: 64,
-                    maxOutputTokens: 2048,
-                }
+                contents: [{ parts: [{ text: prompt }] }]
             })
         });
 
