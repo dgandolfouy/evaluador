@@ -105,8 +105,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ evaluations, employees, on
                     <h3 className="text-sm font-black text-white uppercase tracking-widest mb-8 flex items-center gap-2">
                         <PieIcon size={16} className="text-orange-500" /> Perfil Competencial Global
                     </h3>
-                    <div className="flex-1 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="flex-1 w-full min-h-[300px]">
+                        <ResponsiveContainer width="100%" height="300" minWidth={0}>
                             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
                                 <PolarGrid stroke="#334155" />
                                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
@@ -131,8 +131,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ evaluations, employees, on
                     <h3 className="text-sm font-black text-white uppercase tracking-widest mb-8 flex items-center gap-2">
                         <TrendingUp size={16} className="text-blue-500" /> Desempeño por Área
                     </h3>
-                    <div className="flex-1 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="flex-1 w-full h-80 min-h-[300px]">
+                        <ResponsiveContainer width="99%" height="100%">
                             <BarChart data={barData} layout="vertical" margin={{ left: 20 }}>
                                 <XAxis type="number" domain={[0, 10]} hide />
                                 <YAxis dataKey="name" type="category" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} width={100} />
