@@ -1,75 +1,60 @@
 import { Criterion, AnalysisResult, Employee } from "../types";
 
-/**
- * Extractor de JSON ultra-robusto para entornos inestables.
- */
 const cleanJson = (text: string) => {
   try {
     let cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const startIdx = cleaned.indexOf('{') !== -1 ? cleaned.indexOf('{') : cleaned.indexOf('[');
-    const endIdx = cleaned.lastIndexOf('}') !== -1 ? cleaned.lastIndexOf('}') : cleaned.lastIndexOf(']');
-
+    const startIdx = Math.max(cleaned.indexOf('{'), cleaned.indexOf('['));
+    const endIdx = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
     if (startIdx !== -1 && endIdx !== -1) {
       cleaned = cleaned.substring(startIdx, endIdx + 1);
     }
     return JSON.parse(cleaned);
   } catch (e) {
-    console.error("Parse Error:", e, "Text:", text);
-    throw new Error("Formato de respuesta inválido.");
-  }
-};
-
-const callAiBridge = async (prompt: string, type: 'criteria' | 'analysis'): Promise<any> => {
-  const response = await fetch('/api/ai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, type })
-  });
-
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.details || errData.error || "Error de servidor");
-  }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("IA sin respuesta");
-  return text;
-};
-
-export const generateIsoCriteria = async (employee: Employee): Promise<Criterion[]> => {
-  const roles = [employee.jobtitle || employee.jobTitle, ...(employee.additionalroles || []).map((r: any) => r.jobtitle)].join(', ');
-  const prompt = `Genera 5 criterios técnicos ISO 9001 para: ${roles} en RR Etiquetas. Devuelve SOLO JSON: [{"id":"1","name":"...","description":"...","category":"..."}]`;
-
-  try {
-    const text = await callAiBridge(prompt, 'criteria');
-    return cleanJson(text).map((c: any) => ({ ...c, score: 5, feedback: '' }));
-  } catch (e) {
-    return [
-      { id: 'f1', name: 'Calidad ISO', description: 'Cumplimiento de estándares en RR Etiquetas.', score: 5, feedback: '', category: 'Calidad' },
-      { id: 'f2', name: 'Productividad', description: 'Eficiencia en tiempos y mermas.', score: 5, feedback: '', category: 'Desempeño' },
-      { id: 'f3', name: 'Seguridad e Higiene', description: 'Uso de EPP y orden.', score: 5, feedback: '', category: 'Actitud' },
-      { id: 'f4', name: 'Trabajo en Equipo', description: 'Colaboración efectiva.', score: 5, feedback: '', category: 'Competencias Blandas' },
-      { id: 'f5', name: 'Mantenimiento', description: 'Cuidado de maquinaria.', score: 5, feedback: '', category: 'Actitud' }
-    ];
+    console.error("Error parseando JSON de IA:", e);
+    return null;
   }
 };
 
 export const analyzeEvaluation = async (employee: Employee, criteria: Criterion[]): Promise<AnalysisResult> => {
-  const prompt = `Analiza competencia ISO 9001 para ${employee.name}. Datos: ${criteria.map(c => `${c.name}:${c.score}`).join(', ')}. 
-  Devuelve SOLO JSON: {"summary":"...","strengths":["..."],"weaknesses":["..."],"trainingPlan":["..."],"isoComplianceLevel":"..."}`;
+  const prompt = `
+    Actúa como Auditor Líder de Calidad ISO 9001:2015 experto en procesos de impresión flexográfica (RR Etiquetas).
+    Analiza el desempeño de ${employee.name} (Cargo: ${employee.jobTitle}).
+    
+    Datos evaluados:
+    ${criteria.map(c => `- ${c.name}: ${c.score}/10. Evidencia: ${c.feedback}`).join('\n')}
+
+    Genera un informe técnico estructurado para exportar a PDF. 
+    Responde ÚNICAMENTE con este formato JSON:
+    {
+      "summary": "Resumen ejecutivo profesional centrado en procesos certificados.",
+      "strengths": ["Fortaleza 1", "Fortaleza 2", "Fortaleza 3"],
+      "weaknesses": ["Punto de mejora 1", "Punto de mejora 2"],
+      "trainingPlan": ["Acción formativa específica para flexografía (ej: control de viscosidad, mermas, etc)"],
+      "isoComplianceLevel": "Nivel (Bajo, Medio, Alto, Excelente)"
+    }
+  `;
 
   try {
-    const text = await callAiBridge(prompt, 'analysis');
-    return cleanJson(text);
-  } catch (e: any) {
-    console.error("Analysis failed, using backup:", e.message);
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const result = text ? cleanJson(text) : null;
+
+    if (!result) throw new Error("Formato inválido");
+    return result;
+
+  } catch (e) {
     return {
-      summary: "Análisis generado por sistema (IA no disponible). Se observa un desempeño general basado en las puntuaciones registradas.",
-      strengths: ["Puntajes registrados en el sistema.", "Cumplimiento de evaluación periódica."],
-      weaknesses: ["Análisis detallado de IA no disponible en este momento."],
-      trainingPlan: ["Revisión del desempeño con el supervisor directo."],
-      isoComplianceLevel: "Pendiente de Auditoría"
+      summary: "Análisis técnico manual requerido (Servicio de IA temporalmente fuera de línea).",
+      strengths: ["Competencia operativa en el puesto"],
+      weaknesses: ["Documentación de evidencias"],
+      trainingPlan: ["Revisión de procedimientos operativos estándar"],
+      isoComplianceLevel: "Evaluado"
     };
   }
 };
