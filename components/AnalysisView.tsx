@@ -137,8 +137,8 @@ ${analysis.trainingPlan.map(t => `- ${t}`).join('\n')}
           {/* Chart */}
           <section className="bg-slate-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-700 shadow-sm">
             <h3 className="text-[10px] sm:text-sm font-black text-white uppercase tracking-widest mb-6">Puntuación por Criterio</h3>
-            <div className="h-64 sm:h-72 w-full min-h-[250px]">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+            <div className="w-full">
+              <ResponsiveContainer width="100%" aspect={window.innerWidth < 640 ? 1.5 : 2.5}>
                 <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
                   <XAxis type="number" domain={[0, 10]} hide />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10, fontWeight: 600, fill: '#94a3b8' }} />
