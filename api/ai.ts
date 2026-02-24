@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
 export async function POST(req: Request) {
   try {
@@ -12,50 +12,48 @@ export async function POST(req: Request) {
       observaciones
     } = body;
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-pro"
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY!
     });
 
     const prompt = `
 Actuás como auditor profesional de sistemas de gestión de calidad ISO 9001:2015,
-especializado en industria gráfica y procesos de impresión flexográfica.
+especializado en industria gráfica y procesos de impresión flexográfica y Digital.
 
 La empresa tiene certificados sus procesos productivos.
 
-Evaluá el desempeño del colaborador en función de estos puntajes:
+Evaluá el desempeño del colaborador según los siguientes puntajes:
 
-- Productividad: ${productividad}/10
-- Calidad: ${calidad}/10
-- Seguridad e higiene: ${seguridad}/10
-- Trabajo en equipo: ${trabajoEquipo}/10
+Productividad: ${productividad}/10
+Calidad: ${calidad}/10
+Seguridad e higiene: ${seguridad}/10
+Trabajo en equipo: ${trabajoEquipo}/10
 
-Observaciones adicionales:
+Observaciones:
 ${observaciones || "Sin observaciones adicionales."}
 
-Redactá un informe profesional para un reporte interno que incluya:
+Redactá un informe profesional que incluya:
 
 1. Resumen ejecutivo del desempeño general.
 2. Fortalezas del colaborador en relación a los procesos certificados.
 3. Debilidades o desvíos respecto a buenas prácticas ISO 9001:2015.
-4. Recomendaciones de mejora orientadas a:
-   - estandarización de procesos
-   - control de calidad
-   - reducción de reprocesos
-   - mejora continua
+4. Recomendaciones de mejora orientadas a estandarización de procesos, control de calidad, reducción de reprocesos y mejora continua.
 5. Conclusión general.
 
 Usar lenguaje formal, técnico y claro.
-No usar emojis.
-No usar listas con viñetas.
 Redactar en párrafos.
+No usar emojis.
 Texto apto para ser exportado a PDF.
 `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await ai.models.generateContent({
+      model: "gemini-1.5-pro",
+      contents: prompt
+    });
+
+    const text =
+      result.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "No se pudo generar el análisis automático.";
 
     return Response.json({ analysis: text });
 
@@ -63,8 +61,8 @@ Texto apto para ser exportado a PDF.
     console.error("Error IA:", error);
 
     return Response.json({
-      analysis: `No fue posible generar el análisis automático. 
-Se recomienda realizar evaluación manual según criterios ISO 9001:2015.`
+      analysis:
+        "No fue posible generar el análisis automático. Se recomienda realizar evaluación manual según criterios ISO 9001:2015."
     });
   }
 }
