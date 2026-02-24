@@ -1,20 +1,52 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
 
+// Self-healing function to ensure tables and columns exist
+async function ensureSchema() {
+  try {
+    // 1. Ensure basic tables exist
+    await sql`CREATE TABLE IF NOT EXISTS departments (name VARCHAR(255) PRIMARY KEY);`;
+    await sql`CREATE TABLE IF NOT EXISTS employees (
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      department VARCHAR(255),
+      jobtitle VARCHAR(255),
+      reportsto VARCHAR(255),
+      additionalroles JSON,
+      averagescore NUMERIC
+    );`;
+    await sql`CREATE TABLE IF NOT EXISTS evaluations (
+      id VARCHAR(255) PRIMARY KEY,
+      employeeid VARCHAR(255) NOT NULL,
+      evaluatorid VARCHAR(255) NOT NULL,
+      date VARCHAR(255) NOT NULL,
+      criteria JSON,
+      finalscore NUMERIC,
+      analysis JSON
+    );`;
+    await sql`CREATE TABLE IF NOT EXISTS settings (key VARCHAR(255) PRIMARY KEY, value JSON);`;
+
+    // 2. Add missing columns to evaluations if they are using old schema
+    try {
+      await sql`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS criteria JSON;`;
+      await sql`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS analysis JSON;`;
+    } catch (e) { /* Likely already exists or table busy */ }
+
+  } catch (err) {
+    console.error("Schema initialization warning:", err);
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Run schema check on every request (Vercel serverless might restart often)
+  await ensureSchema();
+
   if (req.method === 'GET') {
     try {
       const { rows: employees = [] } = await sql`SELECT * FROM employees;`;
       const { rows: departments = [] } = await sql`SELECT * FROM departments;`;
       const { rows: evaluations = [] } = await sql`SELECT * FROM evaluations;`;
-
-      let settings = [];
-      try {
-        const { rows } = await sql`SELECT * FROM settings;`;
-        settings = rows;
-      } catch (e) {
-        console.warn("Settings table not found");
-      }
+      const { rows: settings = [] } = await sql`SELECT * FROM settings;`;
 
       return res.status(200).json({ employees, departments, evaluations, settings });
     } catch (error: any) {
@@ -30,17 +62,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await sql`BEGIN;`;
 
       // 1. DELETE everything in correct reverse-dependency order
-      if (evaluations) await sql`DELETE FROM evaluations;`;
-      // We only delete employees/departments if we are actually sending new ones
-      if (employees) await sql`DELETE FROM employees;`;
-      if (departments) await sql`DELETE FROM departments;`;
-      if (settings) await sql`DELETE FROM settings;`;
+      // We only delete if corresponding array is provided in body
+      if (evaluations !== undefined) await sql`DELETE FROM evaluations;`;
+      if (employees !== undefined) await sql`DELETE FROM employees;`;
+      if (departments !== undefined) await sql`DELETE FROM departments;`;
+      if (settings !== undefined) await sql`DELETE FROM settings;`;
 
       // 2. INSERT everything in correct dependency order
       if (departments) {
         for (const dept of departments) {
           const dName = typeof dept === 'string' ? dept : dept.name;
-          if (dName) await sql`INSERT INTO departments (name) VALUES (${dName});`;
+          if (dName) await sql`INSERT INTO departments (name) VALUES (${dName}) ON CONFLICT DO NOTHING;`;
         }
       }
 
