@@ -6,36 +6,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { prompt } = req.body;
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
-    if (!GEMINI_API_KEY) return res.status(500).json({ error: 'Falta la API KEY de Gemini' });
+    if (!GEMINI_API_KEY) {
+        return res.status(500).json({ error: 'Falta la API KEY de Gemini' });
+    }
 
     try {
-        // Intento 1: El modelo más rápido (Flash)
-        const urlFlash = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const resFlash = await fetch(urlFlash, {
+        // Única URL, único modelo, sin configuraciones raras que den Error 400
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        
+        const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            body: JSON.stringify({ 
+                contents: [{ parts: [{ text: prompt }] }] 
+            })
         });
 
-        const dataFlash = await resFlash.json();
+        const data = await response.json();
         
-        if (resFlash.ok) {
-            return res.status(200).json(dataFlash);
-        } 
+        // Si Google responde OK, mandamos la data
+        if (response.ok) {
+            return res.status(200).json(data);
+        } else {
+            // Si Google falla, imprimimos el error real en Vercel
+            console.error("Error devuelto por Google:", JSON.stringify(data));
+            return res.status(response.status).json(data);
+        }
 
-        // Intento 2: Si Flash da Error 404 (pasa con algunas cuentas), usamos Pro
-        console.warn("Flash falló, intentando con Pro de respaldo...");
-        const urlPro = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${GEMINI_API_KEY}`;
-        const resPro = await fetch(urlPro, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
-        
-        const dataPro = await resPro.json();
-        return res.status(resPro.ok ? 200 : 500).json(dataPro);
-
-    } catch (e: any) {
-        return res.status(500).json({ error: 'Network Error', details: e.message });
+    } catch (error: any) {
+        console.error("Error interno del servidor:", error);
+        return res.status(500).json({ error: 'Network Error', details: error.message });
     }
 }
