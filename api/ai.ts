@@ -9,24 +9,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
     if (!GEMINI_API_KEY) {
-        console.error("Backend Error: GEMINI_API_KEY is missing in environment variables.");
         return res.status(500).json({
             error: 'GEMINI_API_KEY no configurada en el servidor',
             hint: 'Asegúrese de agregar GEMINI_API_KEY en las variables de entorno de Vercel.'
         });
     }
 
-    const API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
+    // Usamos v1 (Estable) para mayor confiabilidad en producción
+    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     try {
-        const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
-                    responseMimeType: "application/json",
-                    temperature: type === 'criteria' ? 0.2 : 0.4
+                    temperature: type === 'criteria' ? 0.2 : 0.4,
+                    // Nota: Se omite responseMimeType para compatibilidad estricta con v1 estable
                 }
             })
         });
@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const data = await response.json();
 
         if (!response.ok) {
-            console.error("Gemini API returned error:", JSON.stringify(data));
+            console.error("Gemini API Error:", data.error?.message || response.statusText);
             return res.status(response.status).json({
                 error: 'Error de la API de Gemini',
                 details: data.error?.message || 'Error desconocido'
@@ -42,13 +42,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            console.error("Gemini API returned empty candidates:", JSON.stringify(data));
-            return res.status(500).json({ error: 'Gemini no devolvió ninguna respuesta válida' });
+            return res.status(500).json({ error: 'Respuesta de IA vacía o inválida' });
         }
 
         return res.status(200).json(data);
     } catch (error: any) {
-        console.error("Backend AI Exception:", error.message);
+        console.error("Internal AI Bridge Error:", error.message);
         return res.status(500).json({
             error: 'Fallo interno en el puente de IA',
             details: error.message
