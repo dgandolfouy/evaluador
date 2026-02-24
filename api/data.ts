@@ -26,19 +26,25 @@ async function ensureSchema() {
     );`;
     await sql`CREATE TABLE IF NOT EXISTS settings (key VARCHAR(255) PRIMARY KEY, value JSON);`;
 
-    // 2. Add missing columns to evaluations if they are using old schema
+    // 2. Add missing columns to employees if they are using old schema (CamelCase)
+    try {
+      await sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS jobtitle VARCHAR(255);`;
+      await sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS reportsto VARCHAR(255);`;
+      await sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS additionalroles JSON;`;
+      await sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS averagescore NUMERIC;`;
+    } catch (e: any) { console.warn("Schema Employees Update Warn:", e.message); }
+
+    // 3. Add missing columns to evaluations if they are using old schema
     try {
       await sql`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS criteria JSON;`;
       await sql`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS analysis JSON;`;
-    } catch (e) { /* Likely already exists */ }
-
-    try {
-      await sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS additionalroles JSON;`;
-      await sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS averagescore NUMERIC;`;
-    } catch (e) { /* Likely already exists */ }
+      await sql`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS employeeid VARCHAR(255);`;
+      await sql`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS evaluatorid VARCHAR(255);`;
+      await sql`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS finalscore NUMERIC;`;
+    } catch (e: any) { console.warn("Schema Evaluations Update Warn:", e.message); }
 
   } catch (err: any) {
-    console.error("Schema initialization warning:", err.message);
+    console.error("Critical Schema initialization FAIL:", err.message);
   }
 }
 
@@ -63,24 +69,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const { employees, departments, evaluations, settings } = req.body;
 
-      // LOG: Received update for keys: [${Object.keys(req.body).join(', ')}]
       await sql`BEGIN;`;
 
-      // 1. DELETE in order of dependency
-      if (evaluations !== undefined) {
-        await sql`DELETE FROM evaluations;`;
-      }
-      if (employees !== undefined) {
-        await sql`DELETE FROM employees;`;
-      }
-      if (departments !== undefined) {
-        await sql`DELETE FROM departments;`;
-      }
-      if (settings !== undefined) {
-        await sql`DELETE FROM settings;`;
-      }
+      if (evaluations !== undefined) await sql`DELETE FROM evaluations;`;
+      if (employees !== undefined) await sql`DELETE FROM employees;`;
+      if (departments !== undefined) await sql`DELETE FROM departments;`;
+      if (settings !== undefined) await sql`DELETE FROM settings;`;
 
-      // 2. INSERT in order of dependency
       if (departments) {
         for (const dept of departments) {
           const dName = typeof dept === 'string' ? dept : dept.name;
@@ -92,17 +87,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (employees) {
         for (const emp of employees) {
-          const id = String(emp.id);
-          const name = String(emp.name);
-          const dept = emp.department || null;
-          const jt = String(emp.jobtitle || emp.jobTitle || '');
-          const repTo = emp.reportsto || emp.reportsTo || null;
-          const addRoles = JSON.stringify(emp.additionalroles || emp.additionalRoles || []);
-          const score = Number(emp.averagescore || emp.averageScore || 0);
-
           await sql`
             INSERT INTO employees (id, name, department, jobtitle, reportsto, additionalroles, averagescore)
-            VALUES (${id}, ${name}, ${dept}, ${jt}, ${repTo}, ${addRoles}, ${score})
+            VALUES (
+              ${String(emp.id)}, 
+              ${String(emp.name)}, 
+              ${emp.department || null}, 
+              ${String(emp.jobtitle || emp.jobTitle || '')}, 
+              ${emp.reportsto || emp.reportsTo || null}, 
+              ${JSON.stringify(emp.additionalroles || emp.additionalRoles || [])}, 
+              ${Number(emp.averagescore || emp.averageScore || 0)}
+            )
             ON CONFLICT (id) DO UPDATE SET 
               name = EXCLUDED.name,
               department = EXCLUDED.department,
@@ -116,17 +111,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (evaluations) {
         for (const ev of evaluations) {
-          const id = String(ev.id);
-          const empId = String(ev.employeeid || ev.employeeId);
-          const evalId = String(ev.evaluatorid || ev.evaluatorId);
-          const date = String(ev.date);
-          const crit = typeof ev.criteria === 'string' ? ev.criteria : JSON.stringify(ev.criteria || []);
-          const score = Number(ev.finalscore || ev.finalScore || 0);
-          const analysis = typeof ev.analysis === 'string' ? ev.analysis : JSON.stringify(ev.analysis || {});
-
           await sql`
             INSERT INTO evaluations (id, employeeid, evaluatorid, date, criteria, finalscore, analysis)
-            VALUES (${id}, ${empId}, ${evalId}, ${date}, ${crit}, ${score}, ${analysis})
+            VALUES (
+              ${String(ev.id)}, 
+              ${String(ev.employeeid || ev.employeeId)}, 
+              ${String(ev.evaluatorid || ev.evaluatorId)}, 
+              ${String(ev.date)}, 
+              ${typeof ev.criteria === 'string' ? ev.criteria : JSON.stringify(ev.criteria || [])}, 
+              ${Number(ev.finalscore || ev.finalScore || 0)}, 
+              ${typeof ev.analysis === 'string' ? ev.analysis : JSON.stringify(ev.analysis || {})}
+            )
             ON CONFLICT (id) DO UPDATE SET
               employeeid = EXCLUDED.employeeid,
               evaluatorid = EXCLUDED.evaluatorid,
@@ -152,11 +147,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true });
     } catch (error: any) {
       await sql`ROLLBACK;`;
-      console.error("Transacción fallida detallada:", error.message);
+      console.error("Manual ROLLBACK executed:", error.message);
       return res.status(500).json({
         error: "Fallo al guardar en la base de datos",
         details: error.message,
-        hint: "Verifique que todos los IDs sean únicos y que los departamentos existan."
+        hint: "Si este error persiste, intente crear las tablas manualmente o contacte a soporte."
       });
     }
   }
