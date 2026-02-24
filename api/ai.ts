@@ -15,8 +15,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
     }
 
-    // Usamos v1 (Estable) para mayor confiabilidad en producción
-    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    // Volvemos a v1beta donde gemini-1.5-flash es detectado correctamente
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     try {
         const response = await fetch(API_URL, {
@@ -25,8 +25,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
-                    temperature: type === 'criteria' ? 0.2 : 0.4,
-                    // Nota: Se omite responseMimeType para compatibilidad estricta con v1 estable
+                    temperature: type === 'criteria' ? 0.2 : 0.4
+                    // OMITIMOS responseMimeType para evitar el error "Unknown name" en el payload
                 }
             })
         });
@@ -34,20 +34,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const data = await response.json();
 
         if (!response.ok) {
-            console.error("Gemini API Error:", data.error?.message || response.statusText);
+            console.error("Gemini Backend Fail:", JSON.stringify(data));
             return res.status(response.status).json({
                 error: 'Error de la API de Gemini',
-                details: data.error?.message || 'Error desconocido'
+                details: data.error?.message || 'Error desconocido del servidor de Google'
             });
         }
 
         if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            return res.status(500).json({ error: 'Respuesta de IA vacía o inválida' });
+            return res.status(500).json({ error: 'La IA devolvió una respuesta vacía.' });
         }
 
         return res.status(200).json(data);
     } catch (error: any) {
-        console.error("Internal AI Bridge Error:", error.message);
+        console.error("Critical Bridge Error:", error.message);
         return res.status(500).json({
             error: 'Fallo interno en el puente de IA',
             details: error.message
