@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!apiKey) return res.status(500).json({ error: 'Falta la API KEY de Gemini' });
 
   try {
-    // CAMBIO CLAVE: Usamos v1 y gemini-1.5-flash (Sin parámetros extra que den Error 400)
+    // Usamos v1 que es la más compatible con el modelo flash actual
     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const response = await fetch(url, {
@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (response.ok) {
       return res.status(200).json(data);
     } else {
-      console.error("Google Error:", JSON.stringify(data));
+      // Si falla, devolvemos el error real de Google para verlo en los logs
       return res.status(response.status).json(data);
     }
 
