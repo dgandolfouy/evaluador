@@ -39,7 +39,14 @@ const App: React.FC = () => {
       }
       const data = await response.json();
 
-      let loadedEmployees = data.employees || [];
+      let loadedEmployees = (data.employees || []).map((e: any) => ({
+        ...e,
+        jobtitle: e.jobtitle || e.jobTitle || '',
+        reportsto: e.reportsto || e.reportsTo || '',
+        additionalroles: e.additionalroles || e.additionalRoles || [],
+        averagescore: Number(e.averagescore || e.averageScore || 0)
+      }));
+
       // Bootstrap logic: If DB is empty, provide a way for Admin to enter
       if (loadedEmployees.length === 0) {
         console.warn("Database empty. Adding bootstrap admins.");
@@ -65,7 +72,18 @@ const App: React.FC = () => {
 
       try {
         if (data.departments) setDepartments(data.departments.map((d: any) => typeof d === 'string' ? d : d.name));
-        if (data.evaluations) setHistory(data.evaluations);
+
+        if (data.evaluations) {
+          const loadedEvals = data.evaluations.map((ev: any) => ({
+            ...ev,
+            employeeid: ev.employeeid || ev.employeeId,
+            evaluatorid: ev.evaluatorid || ev.evaluatorId,
+            finalscore: Number(ev.finalscore || ev.finalScore || 0),
+            criteria: typeof ev.criteria === 'string' ? JSON.parse(ev.criteria) : ev.criteria,
+            analysis: typeof ev.analysis === 'string' ? JSON.parse(ev.analysis) : ev.analysis
+          }));
+          setHistory(loadedEvals);
+        }
 
         if (data.settings) {
           const critSetting = data.settings.find((s: any) => s.key === 'evaluation_criteria');
