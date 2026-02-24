@@ -1,51 +1,41 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
-async function tryGemini(version: string, model: string, prompt: string, apiKey: string) {
-    const API_URL = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`;
-    try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                contents: [{ parts: [{ text: prompt }] }]
-                // Eliminamos el generationConfig porque tu cleanJson del frontend es mejor
-            })
-        });
-        const data = await response.json();
-        return { ok: response.ok, status: response.status, data };
-    } catch (e) {
-        return { ok: false, status: 500, data: { error: { message: "Network Error" } } };
-    }
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-    const { prompt } = req.body;
     
+    const { prompt } = req.body;
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
     if (!GEMINI_API_KEY) return res.status(500).json({ error: 'Falta la API KEY de Gemini' });
 
-    // Nombres exactos actualizados con el sufijo que pide Google y modelo Pro de respaldo
-    const combinations = [
-        { v: 'v1beta', m: 'gemini-1.5-flash-latest' },
-        { v: 'v1beta', m: 'gemini-1.0-pro-latest' },
-        { v: 'v1', m: 'gemini-1.5-flash-latest' },
-        { v: 'v1', m: 'gemini-1.0-pro-latest' }
-    ];
+    try {
+        // Intento 1: El modelo más rápido (Flash)
+        const urlFlash = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const resFlash = await fetch(urlFlash, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
 
-    for (const combo of combinations) {
-        console.log(`Intentando ${combo.v}/${combo.m}...`);
-        const result = await tryGemini(combo.v, combo.m, prompt, GEMINI_API_KEY);
-        if (result.ok) {
-            console.log(`Éxito con ${combo.v}/${combo.m}`);
-            return res.status(200).json(result.data);
-        }
-        console.warn(`Fallo con ${combo.v}/${combo.m}:`, result.data?.error?.message);
+        const dataFlash = await resFlash.json();
+        
+        if (resFlash.ok) {
+            return res.status(200).json(dataFlash);
+        } 
+
+        // Intento 2: Si Flash da Error 404 (pasa con algunas cuentas), usamos Pro
+        console.warn("Flash falló, intentando con Pro de respaldo...");
+        const urlPro = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${GEMINI_API_KEY}`;
+        const resPro = await fetch(urlPro, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        
+        const dataPro = await resPro.json();
+        return res.status(resPro.ok ? 200 : 500).json(dataPro);
+
+    } catch (e: any) {
+        return res.status(500).json({ error: 'Network Error', details: e.message });
     }
-
-    return res.status(500).json({
-        error: 'IA Offline',
-        details: 'Rechazo de API de Google por versión de modelo.'
-    });
 }
