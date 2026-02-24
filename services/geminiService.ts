@@ -1,13 +1,30 @@
 import { Criterion, AnalysisResult, Employee } from "../types";
 
+/**
+ * Extrae y limpia el JSON de una respuesta de texto, incluso si tiene basura alrededor.
+ */
 const cleanJson = (text: string) => {
   try {
-    // Elimina bloques de código markdown si existen
-    const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    // 1. Intento rápido: Limpiar bloques markdown
+    let cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+
+    // 2. Intento profundo: Buscar el primer '{' o '[' y el último '}' o ']'
+    const firstBrace = cleaned.indexOf('{');
+    const firstBracket = cleaned.indexOf('[');
+    const startIdx = (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) ? firstBrace : firstBracket;
+
+    const lastBrace = cleaned.lastIndexOf('}');
+    const lastBracket = cleaned.lastIndexOf(']');
+    const endIdx = (lastBrace !== -1 && lastBrace > lastBracket) ? lastBrace : lastBracket;
+
+    if (startIdx !== -1 && endIdx !== -1) {
+      cleaned = cleaned.substring(startIdx, endIdx + 1);
+    }
+
     return JSON.parse(cleaned);
   } catch (e) {
-    console.error("JSON Clean Error:", e, "Text:", text);
-    throw e;
+    console.error("Critical JSON Parse Error:", e, "Original Text:", text);
+    throw new Error("No se pudo procesar el formato de respuesta de la IA.");
   }
 };
 
@@ -27,7 +44,9 @@ const callAiBridge = async (prompt: string, type: 'criteria' | 'analysis'): Prom
   }
 
   const data = await response.json();
-  return data.candidates[0].content.parts[0].text;
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("La IA devolvió una respuesta vacía.");
+  return text;
 };
 
 /**
@@ -42,20 +61,20 @@ export const generateIsoCriteria = async (employee: Employee): Promise<Criterion
 
   const prompt = `
     Actúa como un Consultor Senior de Calidad experto en la norma ISO 9001:2015 para la industria gráfica y de impresión de etiquetas (RR Etiquetas).
-    Tu objetivo es generar 5 criterios de evaluación críticos y técnicos para un colaborador con las siguientes funciones: ${rolesStr}.
+    Objetivo: Genera 5 criterios de evaluación críticos y técnicos para: ${rolesStr}.
 
-    REQUISITOS DE LOS CRITERIOS:
-    1. Deben ser específicos para el rol (ej. si es producción, enfócate en mermas, tiempos de set-up o calidad de impresión).
-    2. Deben estar alineados con el pensamiento basado en riesgos de ISO 9001.
-    3. Deben ser medibles y objetivos.
+    REQUISITOS:
+    - Específicos para el rol (ej. mermas, tiempos de set-up, calidad de impresión).
+    - Alineados con los riesgos de ISO 9001.
+    - Medibles y técnicos.
 
-    FORMATO DE SALIDA (Estrictamente JSON - Array de objetos):
+    DEVUELVE ÚNICAMENTE EL SIGUIENTE FORMATO JSON (Sin texto adicional):
     [
       {
-        "id": "string único",
-        "name": "Nombre corto y profesional del criterio",
-        "description": "Explicación técnica de qué se evalúa y por qué es importante para RR Etiquetas",
-        "category": "Una de: Competencias Técnicas, Calidad, Desempeño, Competencias Blandas, Actitud"
+        "id": "string",
+        "name": "Nombre corto",
+        "description": "Explicación técnica para RR Etiquetas",
+        "category": "Competencias Técnicas | Calidad | Desempeño | Competencias Blandas | Actitud"
       }
     ]
   `;
@@ -63,17 +82,15 @@ export const generateIsoCriteria = async (employee: Employee): Promise<Criterion
   try {
     const textContent = await callAiBridge(prompt, 'criteria');
     const rawCriteria = cleanJson(textContent);
-
     return rawCriteria.map((c: any) => ({ ...c, score: 5, feedback: '' }));
   } catch (error: any) {
-    console.error("AI Criteria Error:", error.message);
-    // Fallback profesional en caso de fallo del puente
+    console.warn("AI Criteria Fallback:", error.message);
     return [
-      { id: 'f1', name: 'Eficiencia Operativa', description: 'Capacidad para cumplir con los tiempos de producción y minimizar desperdicios de material en RR Etiquetas.', score: 5, feedback: '', category: 'Desempeño' },
-      { id: 'f2', name: 'Cumplimiento de Estándares ISO', description: 'Apego a los procesos documentados y registros de calidad del sistema de gestión comercial y operativo.', score: 5, feedback: '', category: 'Calidad' },
-      { id: 'f3', name: 'Conciencia de Riesgos', description: 'Prevención de errores en la línea de producción y reporte proactivo de no conformidades.', score: 5, feedback: '', category: 'Calidad' },
-      { id: 'f4', name: 'Comunicación Técnica', description: 'Habilidad para transmitir incidencias de maquinaria y colaborar eficientemente con otras áreas.', score: 5, feedback: '', category: 'Competencias Blandas' },
-      { id: 'f5', name: 'Mantenimiento y Orden (5S)', description: 'Estado técnico del puesto de trabajo y cuidado preventivo de las herramientas/maquinaria.', score: 5, feedback: '', category: 'Actitud' },
+      { id: 'f1', name: 'Eficiencia Operativa', description: 'Capacidad para cumplir con los tiempos de producción y minimizar desperdicios en RR Etiquetas.', score: 5, feedback: '', category: 'Desempeño' },
+      { id: 'f2', name: 'Cumplimiento ISO', description: 'Apego a los procesos documentados y registros de calidad del sistema.', score: 5, feedback: '', category: 'Calidad' },
+      { id: 'f3', name: 'Conciencia de Riesgo', description: 'Prevención de errores en línea y reporte de no conformidades.', score: 5, feedback: '', category: 'Calidad' },
+      { id: 'f4', name: 'Comunicación Técnica', description: 'Transmisión de incidencias de maquinaria y colaboración entre áreas.', score: 5, feedback: '', category: 'Competencias Blandas' },
+      { id: 'f5', name: 'Orden y Limpieza', description: 'Estado técnico del puesto y cuidado preventivo de herramientas.', score: 5, feedback: '', category: 'Actitud' },
     ];
   }
 };
@@ -88,24 +105,23 @@ export const analyzeEvaluation = async (employee: Employee, criteria: Criterion[
   ].map(r => `${r.jobtitle || r.jobTitle} (${r.department})`).join(', ');
 
   const prompt = `
-    Actúa como Auditor Líder ISO 9001 de RR Etiquetas (Fábrica de Etiquetas). 
-    Tu misión es realizar un análisis profesional de competencia para el colaborador ${employee.name}, quien desempeña las funciones de: ${rolesStr}.
+    Actúa como Auditor Líder ISO 9001 de RR Etiquetas. Realiza un análisis de competencia técnica para ${employee.name} (${rolesStr}).
 
-    DATOS DE LA EVALUACIÓN:
-    ${criteria.map(c => `[CRITERIO: ${c.name}] Puntaje: ${c.score}/10. Categoría: ${c.category}. Observaciones: "${c.feedback || 'Sin observaciones detalladas'}".`).join('\n')}
+    DATOS:
+    ${criteria.map(c => `- ${c.name}: ${c.score}/10. [${c.feedback || 'Sin obs'}]`).join('\n')}
 
-    TU ANÁLISIS DEBE SER TÉCNICO Y RIGUROSO:
-    - Contexto Industrial: RR Etiquetas utiliza maquinaria de impresión, tintas y materiales complejos. El análisis debe reflejar procesos de manufactura reales.
-    - Norma ISO 9001:7.2 (Competencia): Identifica brechas que afecten directamente la calidad o los costos (mermas, tiempos).
-    - Valor Agregado: Evita frases genéricas como "buen trabajo". Si el puntaje es alto, explica por qué beneficia al sistema de calidad. Si es bajo, sugiere una capacitación técnica específica.
+    INSTRUCCIONES:
+    - Contexto de impresión de etiquetas (maquinaria, tintas, calidad ISO).
+    - Basado en ISO 9001:7.2.
+    - Acciones de capacitación realistas para una fábrica.
 
-    DEVUELVE ESTRICTAMENTE UN JSON CON ESTA ESTRUCTURA:
+    DEVUELVE ÚNICAMENTE EL SIGUIENTE FORMATO JSON (Sin texto adicional antes ni después):
     {
-      "summary": "Resumen ejecutivo de auditoría resaltando el impacto del colaborador en los objetivos de calidad de RR Etiquetas. Máximo 3 frases.",
-      "strengths": ["Mínimo 3 fortalezas técnicas basadas en los puntajes y el desempeño observado."],
-      "weaknesses": ["Mínimo 2 áreas de mejora que representen un riesgo para el producto final o el proceso."],
-      "trainingPlan": ["3 acciones de capacitación específicas (ej: 'Entrenamiento en calibración de rodillos', 'Taller de gestión de residuos ISO', etc.)"],
-      "isoComplianceLevel": "Bajo | Medio | Alto | Excelente (Basado en el promedio ponderado de Calidad y Desempeño)"
+      "summary": "Resumen ejecutivo profesional (máx 3 frases).",
+      "strengths": ["Mínimo 3 fortalezas técnicas."],
+      "weaknesses": ["Mínimo 2 riesgos o áreas de mejora."],
+      "trainingPlan": ["3 acciones de capacitación específicas"],
+      "isoComplianceLevel": "Bajo | Medio | Alto | Excelente"
     }
   `;
 
@@ -113,7 +129,7 @@ export const analyzeEvaluation = async (employee: Employee, criteria: Criterion[
     const textContent = await callAiBridge(prompt, 'analysis');
     return cleanJson(textContent);
   } catch (error: any) {
-    console.error("AI Analysis Backend Error:", error.message);
+    console.error("AI Analysis Final Error:", error.message);
     throw new Error(`La IA no pudo procesar el análisis: ${error.message}`);
   }
 };
