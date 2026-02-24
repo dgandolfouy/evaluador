@@ -1,35 +1,70 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  
-  const { prompt } = req.body;
-  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-
-  if (!apiKey) return res.status(500).json({ error: 'Falta la API KEY de Gemini' });
-
+export async function POST(req: Request) {
   try {
-    // Usamos v1 que es la más compatible con el modelo flash actual
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        contents: [{ parts: [{ text: prompt }] }] 
-      })
+    const body = await req.json();
+
+    const {
+      productividad,
+      calidad,
+      seguridad,
+      trabajoEquipo,
+      observaciones
+    } = body;
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-pro"
     });
 
-    const data = await response.json();
+    const prompt = `
+Actuás como auditor profesional de sistemas de gestión de calidad ISO 9001:2015,
+especializado en industria gráfica y procesos de impresión flexográfica.
 
-    if (response.ok) {
-      return res.status(200).json(data);
-    } else {
-      // Si falla, devolvemos el error real de Google para verlo en los logs
-      return res.status(response.status).json(data);
-    }
+La empresa tiene certificados sus procesos productivos.
 
-  } catch (error: any) {
-    return res.status(500).json({ error: 'Error de red', details: error.message });
+Evaluá el desempeño del colaborador en función de estos puntajes:
+
+- Productividad: ${productividad}/10
+- Calidad: ${calidad}/10
+- Seguridad e higiene: ${seguridad}/10
+- Trabajo en equipo: ${trabajoEquipo}/10
+
+Observaciones adicionales:
+${observaciones || "Sin observaciones adicionales."}
+
+Redactá un informe profesional para un reporte interno que incluya:
+
+1. Resumen ejecutivo del desempeño general.
+2. Fortalezas del colaborador en relación a los procesos certificados.
+3. Debilidades o desvíos respecto a buenas prácticas ISO 9001:2015.
+4. Recomendaciones de mejora orientadas a:
+   - estandarización de procesos
+   - control de calidad
+   - reducción de reprocesos
+   - mejora continua
+5. Conclusión general.
+
+Usar lenguaje formal, técnico y claro.
+No usar emojis.
+No usar listas con viñetas.
+Redactar en párrafos.
+Texto apto para ser exportado a PDF.
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    return Response.json({ analysis: text });
+
+  } catch (error) {
+    console.error("Error IA:", error);
+
+    return Response.json({
+      analysis: `No fue posible generar el análisis automático. 
+Se recomienda realizar evaluación manual según criterios ISO 9001:2015.`
+    });
   }
 }
