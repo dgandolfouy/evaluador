@@ -5,6 +5,7 @@ import { Organigram } from './components/Organigram';
 import { EvaluationForm } from './components/EvaluationForm';
 import { AnalysisView } from './components/AnalysisView';
 import { AdminPanel } from './components/AdminPanel';
+import { StatsView } from './components/StatsView';
 import { Login } from './components/Login';
 import { Logo } from './components/Logo';
 import { LayoutDashboard, Users, BarChart3, LogOut, Loader2, Settings } from 'lucide-react';
@@ -159,6 +160,7 @@ const App: React.FC = () => {
         <nav className="flex justify-center mt-6 gap-4 px-4 sticky top-32 z-40">
           <button onClick={() => setState({ ...state, step: 'dashboard' })} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 transition-all ${state.step === 'dashboard' ? 'bg-orange-600 shadow-lg shadow-orange-900/50' : 'bg-slate-800 hover:bg-slate-700'}`}><LayoutDashboard size={18} /> Panel</button>
           <button onClick={() => setState({ ...state, step: 'organigram' })} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 transition-all ${state.step === 'organigram' ? 'bg-orange-600 shadow-lg shadow-orange-900/50' : 'bg-slate-800 hover:bg-slate-700'}`}><Users size={18} /> Organigrama</button>
+          <button onClick={() => setState({ ...state, step: 'stats' })} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 transition-all ${state.step === 'stats' ? 'bg-orange-600 shadow-lg shadow-orange-900/50' : 'bg-slate-800 hover:bg-slate-700'}`}><BarChart3 size={18} /> Estadísticas</button>
         </nav>
       )}
 
@@ -169,6 +171,7 @@ const App: React.FC = () => {
           setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeid, currentCriteria: crit, analysis: an });
         }} />}
         {state.step === 'organigram' && <div className="p-8 max-w-6xl mx-auto"><Organigram employees={employees} currentUser={currentUser} evaluations={history} onSelectEmployee={(emp: any) => setState({ ...state, step: 'form', selectedEmployeeId: emp.id })} /></div>}
+        {state.step === 'stats' && <StatsView evaluations={history} employees={employees} onClose={() => setState({ ...state, step: 'dashboard' })} />}
         {state.step === 'form' && state.selectedEmployeeId && (
           <EvaluationForm
             employee={employees.find(e => e.id === state.selectedEmployeeId)!}
