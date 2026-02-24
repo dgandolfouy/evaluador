@@ -4,12 +4,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
   
   const { prompt } = req.body;
+  // Intenta leer la clave de ambas formas posibles
   const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
-  if (!apiKey) return res.status(500).json({ error: 'Falta API Key' });
+  if (!apiKey) {
+    console.error("ERROR CRÍTICO: No se encontró GEMINI_API_KEY en las variables de entorno de Vercel.");
+    return res.status(500).json({ error: 'Falta API Key en el servidor.' });
+  }
 
   try {
-    // Usamos v1 y flash: el combo que Google SI acepta sin errores raros
+    // Usamos la URL v1 que es la más estable para el modelo flash
     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const response = await fetch(url, {
@@ -17,14 +21,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }]
-        // NO enviamos responseMimeType para evitar el Error 400
       })
     });
 
     const data = await response.json();
-    return res.status(response.ok ? 200 : response.status).json(data);
-    
+
+    if (response.ok) {
+      return res.status(200).json(data);
+    } else {
+      console.error("Google respondió con error:", JSON.stringify(data));
+      return res.status(response.status).json(data);
+    }
   } catch (error: any) {
-    return res.status(500).json({ error: 'Network Error', details: error.message });
+    console.error("Error de conexión:", error.message);
+    return res.status(500).json({ error: 'Error de red', details: error.message });
   }
 }
