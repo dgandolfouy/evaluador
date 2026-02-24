@@ -1,5 +1,8 @@
 import { Criterion, AnalysisResult, Employee } from "../types";
 
+/**
+ * Limpiador de JSON para evitar que texto extra de la IA rompa el sistema.
+ */
 const cleanJson = (text: string) => {
   try {
     let cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -18,9 +21,9 @@ const cleanJson = (text: string) => {
 export const analyzeEvaluation = async (employee: Employee, criteria: Criterion[]): Promise<AnalysisResult> => {
   const prompt = `
     Actúa como Auditor Líder de Calidad ISO 9001:2015 experto en procesos de impresión flexográfica (RR Etiquetas).
-    Analiza el desempeño de ${employee.name} (Cargo: ${employee.jobTitle}).
+    Analiza el desempeño de ${employee.name} (Cargo: ${employee.jobtitle || employee.jobTitle}).
     
-    Datos evaluados:
+    Datos evaluados (Puntajes y Evidencias):
     ${criteria.map(c => `- ${c.name}: ${c.score}/10. Evidencia: ${c.feedback}`).join('\n')}
 
     Genera un informe técnico estructurado para exportar a PDF. 
@@ -29,7 +32,7 @@ export const analyzeEvaluation = async (employee: Employee, criteria: Criterion[
       "summary": "Resumen ejecutivo profesional centrado en procesos certificados.",
       "strengths": ["Fortaleza 1", "Fortaleza 2", "Fortaleza 3"],
       "weaknesses": ["Punto de mejora 1", "Punto de mejora 2"],
-      "trainingPlan": ["Acción formativa específica para flexografía (ej: control de viscosidad, mermas, etc)"],
+      "trainingPlan": ["Acción formativa específica para flexografía e ISO 9001"],
       "isoComplianceLevel": "Nivel (Bajo, Medio, Alto, Excelente)"
     }
   `;
@@ -50,10 +53,10 @@ export const analyzeEvaluation = async (employee: Employee, criteria: Criterion[
 
   } catch (e) {
     return {
-      summary: "Análisis técnico manual requerido (Servicio de IA temporalmente fuera de línea).",
-      strengths: ["Competencia operativa en el puesto"],
-      weaknesses: ["Documentación de evidencias"],
-      trainingPlan: ["Revisión de procedimientos operativos estándar"],
+      summary: "Análisis técnico manual requerido (Servicio de IA en mantenimiento).",
+      strengths: ["Cumplimiento de la evaluación periódica"],
+      weaknesses: ["Pendiente de análisis detallado por IA"],
+      trainingPlan: ["Revisión de estándares operativos con el supervisor"],
       isoComplianceLevel: "Evaluado"
     };
   }
