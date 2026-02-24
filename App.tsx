@@ -32,7 +32,7 @@ const App: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('/api/data');
+      const response = await fetch(`/api/data?t=${Date.now()}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.details || "Server error");
@@ -113,6 +113,7 @@ const App: React.FC = () => {
         setState({ step: 'dashboard', selectedEmployeeId: null, currentCriteria: [], analysis: null });
       } else {
         const err = await res.json();
+        alert("Fallo al guardar evaluación: " + (err.details || err.error || "Desconocido"));
         throw new Error(err.error || "Fallo en servidor");
       }
     } catch (e: any) {
@@ -172,14 +173,19 @@ const App: React.FC = () => {
             try {
               setIsSaving(true);
               const settings = crit ? [{ key: 'evaluation_criteria', value: crit }] : [];
-              await fetch('/api/data', {
+              const res = await fetch('/api/data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ employees: emp, departments: dept, evaluations: evals, settings }),
               });
+              if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.details || err.error || "Fallo en el servidor");
+              }
               await fetchData();
-            } catch (e) {
-              alert("Error al actualizar configuración");
+            } catch (e: any) {
+              alert("Error al actualizar configuración: " + e.message);
+              throw e;
             } finally {
               setIsSaving(false);
             }
