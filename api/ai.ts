@@ -6,12 +6,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { prompt } = req.body;
   const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
-  if (!apiKey) {
-    return res.status(500).json({ error: 'Configuración incompleta: falta API Key en Vercel.' });
-  }
+  if (!apiKey) return res.status(500).json({ error: 'Falta API Key' });
 
   try {
-    // Usamos v1 y flash: el combo más estable y rápido para producción en 2026
+    // Usamos v1 y flash: el combo que Google SI acepta sin errores raros
     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const response = await fetch(url, {
@@ -19,18 +17,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }]
+        // NO enviamos responseMimeType para evitar el Error 400
       })
     });
 
     const data = await response.json();
-
-    if (response.ok) {
-      return res.status(200).json(data);
-    } else {
-      console.error("Error de Google API:", JSON.stringify(data));
-      return res.status(response.status).json(data);
-    }
+    return res.status(response.ok ? 200 : response.status).json(data);
+    
   } catch (error: any) {
-    return res.status(500).json({ error: 'Error de servidor', details: error.message });
+    return res.status(500).json({ error: 'Network Error', details: error.message });
   }
 }
