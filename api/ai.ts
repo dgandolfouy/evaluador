@@ -16,8 +16,6 @@ especializado en industria gráfica y procesos de impresión flexográfica.
 
 La empresa tiene certificados sus procesos productivos.
 
-Evaluá el desempeño del colaborador según los siguientes puntajes:
-
 Productividad: ${productividad}/10
 Calidad: ${calidad}/10
 Seguridad e higiene: ${seguridad}/10
@@ -26,50 +24,41 @@ Trabajo en equipo: ${trabajoEquipo}/10
 Observaciones:
 ${observaciones || "Sin observaciones adicionales."}
 
-Redactá un informe profesional que incluya:
+Redactá un informe profesional con:
+Resumen ejecutivo.
+Fortalezas.
+Debilidades.
+Recomendaciones.
+Conclusión.
 
-Resumen ejecutivo del desempeño general.
-Fortalezas del colaborador en relación a los procesos certificados.
-Debilidades o desvíos respecto a buenas prácticas ISO 9001:2015.
-Recomendaciones de mejora orientadas a estandarización de procesos, control de calidad, reducción de reprocesos y mejora continua.
-Conclusión general.
-
-Usar lenguaje formal, técnico y claro.
-Redactar en párrafos.
-No usar emojis.
-Texto apto para ser exportado a PDF.
+Lenguaje técnico, formal, en párrafos, sin emojis.
 `;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }]
-            }
-          ]
+          contents: [{ parts: [{ text: prompt }] }]
         })
       }
     );
 
     const data = await response.json();
 
+    console.log("RESPUESTA IA:", JSON.stringify(data));
+
     const text =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "No se pudo generar el análisis automático.";
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ??
+      "No se pudo generar análisis.";
 
     return Response.json({ analysis: text });
 
   } catch (error) {
     console.error("Error IA:", error);
     return Response.json({
-      analysis:
-        "No fue posible generar el análisis automático. Se recomienda realizar evaluación manual según criterios ISO 9001:2015."
+      analysis: "Error generando análisis automático."
     });
   }
 }
