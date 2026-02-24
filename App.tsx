@@ -109,7 +109,7 @@ const App: React.FC = () => {
 
     const total = criteria.reduce((acc: number, c: any) => acc + c.score, 0) / criteria.length;
 
-    // Objeto con mapeo estricto a minúsculas para Neon
+    // ADAPTER: Mapeo estricto a minúsculas para Neon (Estrategia B)
     const newEval = {
       id: Date.now().toString(),
       employeeid: String(state.selectedEmployeeId),
