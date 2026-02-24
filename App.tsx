@@ -42,14 +42,23 @@ const App: React.FC = () => {
       let loadedEmployees = data.employees || [];
       // Bootstrap logic: If DB is empty, provide a way for Admin to enter
       if (loadedEmployees.length === 0) {
-        console.warn("Database empty. Adding bootstrap admin.");
-        loadedEmployees = [{
-          id: 'admin_bootstrap',
-          name: 'DANIEL GANDOLFO',
-          department: 'DIRECCIÓN',
-          jobtitle: 'GERENTE GENERAL',
-          reportsto: ''
-        }];
+        console.warn("Database empty. Adding bootstrap admins.");
+        loadedEmployees = [
+          {
+            id: 'admin_bootstrap_1',
+            name: 'DANIEL GANDOLFO',
+            department: 'DIRECCIÓN',
+            jobtitle: 'GERENTE GENERAL',
+            reportsto: ''
+          },
+          {
+            id: 'admin_bootstrap_2',
+            name: 'GONZALO VIÑAS',
+            department: 'GERENCIA',
+            jobtitle: 'DIRECTOR GERENTE GENERAL',
+            reportsto: ''
+          }
+        ];
       }
 
       setEmployees(loadedEmployees);
