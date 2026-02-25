@@ -1,30 +1,21 @@
 @media print {
-  /* Forzar fondo blanco y texto negro en toda la página */
-  body {
-    background: white !important;
-    color: black !important;
+  body { background: white !important; }
+  body * { visibility: hidden; }
+
+  /* Solo mostramos la hoja específica de RR */
+  .hoja-a4-rr, .hoja-a4-rr * {
+    visibility: visible;
   }
 
-  /* Ocultar absolutamente todo lo que esté en el root */
-  #root > * {
-    display: none !important;
-  }
-
-  /* Mostrar únicamente el contenedor del reporte */
-  .reporte-imprimible {
-    display: block !important;
+  .hoja-a4-rr {
     position: absolute;
-    top: 0;
     left: 0;
-    width: 210mm; /* Medida estándar A4 */
+    top: 0;
+    width: 210mm;
+    margin: 0;
+    padding: 15mm;
     background: white !important;
-    padding: 20mm;
-    visibility: visible !important;
   }
 
-  /* Asegurar que los elementos internos del reporte también sean visibles */
-  .reporte-imprimible * {
-    visibility: visible !important;
-    color: black !important;
-  }
+  .no-print { display: none !important; }
 }
