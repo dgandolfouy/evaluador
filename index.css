@@ -1,23 +1,28 @@
 @media print {
-  body { background: white !important; color: black !important; }
-  
-  /* Oculta toda la interfaz web */
-  body * { visibility: hidden; }
-
-  /* Muestra solo el reporte A4 */
-  .reporte-final-a4, .reporte-final-a4 * {
-    visibility: visible;
-  }
-
-  .reporte-final-a4 {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 210mm;
-    margin: 0;
-    padding: 15mm;
+  /* Forzamos fondo blanco y texto negro en el body */
+  body {
     background: white !important;
+    color: black !important;
   }
 
-  .no-print { display: none !important; }
+  /* Ocultamos absolutamente todo excepto el reporte */
+  #root > *:not(.reporte-container), 
+  header, nav, button, .no-print {
+    display: none !important;
+  }
+
+  /* El reporte se convierte en lo único visible */
+  .hoja-a4-rr, .hoja-a4-rr * {
+    visibility: visible !important;
+    display: block !important;
+  }
+
+  .hoja-a4-rr {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 210mm; 
+    background: white !important;
+    padding: 15mm;
+  }
 }
