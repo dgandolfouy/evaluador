@@ -21,37 +21,33 @@
   }
 }
 
-/* REGLAS DE IMPRESIÓN - FUERA DE LAS CAPAS */
+/* --- NUEVO ENFOQUE DE IMPRESIÓN --- */
 @media print {
-  /* Oculta absolutamente todo el body */
-  body * {
-    visibility: hidden;
-  }
-
-  /* Muestra solo el reporte y todo lo que esté adentro */
-  .reporte-final-a4, .reporte-final-a4 * {
-    visibility: visible;
-  }
-
-  /* Ajusta el reporte a la hoja A4 */
-  .reporte-final-a4 {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 210mm;
-    margin: 0;
-    padding: 15mm;
+  /* Forzamos el fondo blanco y texto negro en el body */
+  body {
     background: white !important;
     color: black !important;
   }
 
-  /* Asegura que se impriman los colores de las barritas */
+  /* Ocultamos absolutamente toda la interfaz de la app */
+  #root > *:not(.reporte-imprimible) {
+    display: none !important;
+  }
+
+  /* El reporte se convierte en el único elemento visible y ocupa toda la hoja */
+  .reporte-imprimible {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 210mm; /* Ancho A4 */
+    background: white !important;
+    padding: 20mm;
+  }
+
+  /* Forzamos que se vean los colores de las barras de progreso */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-  }
-
-  .no-print {
-    display: none !important;
   }
 }
