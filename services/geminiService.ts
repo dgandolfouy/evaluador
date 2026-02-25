@@ -13,20 +13,7 @@ const cleanJson = (text: string) => {
 };
 
 export const analyzeEvaluation = async (employee: Employee, criteria: Criterion[]): Promise<AnalysisResult> => {
-  const prompt = `
-    Actúa como Auditor de Calidad ISO 9001:2015 en la industria flexográfica (RR Etiquetas).
-    Analiza a ${employee.name} (${employee.jobtitle || employee.jobTitle}).
-    Puntajes: ${criteria.map(c => `${c.name}: ${c.score}/10`).join(', ')}.
-
-    Responde ÚNICAMENTE en JSON con este formato:
-    {
-      "summary": "Resumen técnico formal",
-      "strengths": ["Fortaleza 1", "Fortaleza 2"],
-      "weaknesses": ["Mejora 1", "Mejora 2"],
-      "trainingPlan": ["Capacitación 1", "Capacitación 2"],
-      "isoComplianceLevel": "Bajo/Medio/Alto/Excelente"
-    }
-  `;
+  const prompt = `Actúa como auditor ISO 9001:2015 en RR Etiquetas (Imprenta Flexográfica). Analiza a ${employee.name}. Responde SOLO JSON: {"summary":"...","strengths":["..."],"weaknesses":["..."],"trainingPlan":["..."],"isoComplianceLevel":"..."}`;
 
   try {
     const res = await fetch('/api/ai', {
@@ -41,10 +28,10 @@ export const analyzeEvaluation = async (employee: Employee, criteria: Criterion[
     return result;
   } catch (e) {
     return {
-      summary: "Evaluación procesada. Análisis ISO 9001 pendiente de sincronización.",
-      strengths: ["Cumplimiento de estándares de RR Etiquetas", "Registro de evidencias operativas"],
-      weaknesses: ["Análisis detallado de IA en mantenimiento"],
-      trainingPlan: ["Revisión periódica con el responsable de área"],
+      summary: "Evaluación técnica completada. Análisis ISO 9001 pendiente de sincronización.",
+      strengths: ["Cumplimiento de procesos de RR Etiquetas"],
+      weaknesses: ["Análisis detallado de IA no disponible"],
+      trainingPlan: ["Revisión con supervisor"],
       isoComplianceLevel: "Evaluado"
     };
   }
