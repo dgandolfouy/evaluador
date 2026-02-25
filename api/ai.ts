@@ -6,10 +6,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { prompt } = req.body;
   const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
-  if (!apiKey) return res.status(500).json({ error: 'Falta API Key en Vercel' });
+  if (!apiKey) return res.status(500).json({ error: 'Falta API Key' });
 
   try {
-    // Usamos v1 y gemini-1.5-flash: la combinación más estable para producción
+    // Usamos v1 (estable) y flash
     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const response = await fetch(url, {
