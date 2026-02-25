@@ -3,7 +3,7 @@ import { EvaluationState, Employee, Criterion, SavedEvaluation } from './types';
 import { Dashboard } from './components/Dashboard';
 import { Organigram } from './components/Organigram';
 import { EvaluationForm } from './components/EvaluationForm';
-import { EvaluationResult } from './components/EvaluationResult'; // CAMBIO AQUÍ
+import { EvaluationResult } from './components/EvaluationResult'; // Importación correcta
 import { AdminPanel } from './components/AdminPanel';
 import { StatsView } from './components/StatsView';
 import { Login } from './components/Login';
@@ -77,7 +77,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-950 flex flex-col text-white font-sans">
       <header className="bg-slate-900 border-b border-slate-800 h-28 flex items-center px-12 justify-between sticky top-0 z-50 no-print">
         <Logo className="w-44" />
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 text-white">
           <div className="text-right">
             <p className="text-[10px] font-black text-orange-500 uppercase">{currentUser?.jobtitle || currentUser?.jobTitle}</p>
             <p className="text-sm font-bold">{currentUser?.name}</p>
@@ -89,7 +89,8 @@ const App: React.FC = () => {
       <main className="flex-1">
         {state.step === 'dashboard' && <Dashboard evaluations={history} employees={employees} currentUser={currentUser} onQuickStart={(id) => setState({ ...state, step: 'form', selectedEmployeeId: id })} onView={(ev) => setState({ ...state, step: 'report', selectedEmployeeId: ev.employeeid, currentCriteria: ev.criteria, analysis: ev.analysis })} />}
         {state.step === 'form' && state.selectedEmployeeId && <EvaluationForm employee={employees.find(e => e.id === state.selectedEmployeeId)!} initialCriteria={globalCriteria} onComplete={handleComplete} onCancel={() => setState({ ...state, step: 'dashboard' })} />}
-        {/* CAMBIO VITAL: Ahora usamos EvaluationResult */}
+        
+        {/* CORRECCIÓN AQUÍ: Usamos EvaluationResult, no AnalysisView */}
         {state.step === 'report' && <EvaluationResult employee={employees.find(e => e.id === state.selectedEmployeeId)!} criteria={state.currentCriteria} analysis={state.analysis} onBack={() => setState({ ...state, step: 'dashboard' })} />}
       </main>
 
