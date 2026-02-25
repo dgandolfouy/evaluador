@@ -8,13 +8,15 @@ export const analyzeEvaluation = async (employee: any, criteria: any) => {
     });
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return text ? JSON.parse(text.replace(/```json/g, "").replace(/```/g, "")) : null;
+    // Limpieza de Markdown si la IA lo manda con comillas
+    const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    return JSON.parse(cleanText);
   } catch (e) {
     return {
       summary: "Evaluación técnica completada. Análisis ISO 9001 pendiente de sincronización.",
       strengths: ["Cumplimiento de estándares de RR Etiquetas"],
       weaknesses: ["Análisis de IA en mantenimiento"],
-      trainingPlan: ["Revisión con supervisor"],
+      trainingPlan: ["Revisión periódica con el responsable de área"],
       isoComplianceLevel: "Evaluado"
     };
   }
