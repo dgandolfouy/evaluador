@@ -1,8 +1,9 @@
 @media print {
+  /* Oculta el fondo negro y toda la web */
   body { background: white !important; }
   body * { visibility: hidden; }
 
-  /* Solo mostramos la hoja específica de RR */
+  /* Solo muestra el reporte */
   .hoja-a4-rr, .hoja-a4-rr * {
     visibility: visible;
   }
@@ -15,6 +16,7 @@
     margin: 0;
     padding: 15mm;
     background: white !important;
+    color: black !important;
   }
 
   .no-print { display: none !important; }
