@@ -1,23 +1,30 @@
-@media print {
-  /* Oculta el fondo negro y toda la web */
-  body { background: white !important; }
-  body * { visibility: hidden; }
+@import "tailwindcss";
 
-  /* Solo muestra el reporte */
-  .hoja-a4-rr, .hoja-a4-rr * {
-    visibility: visible;
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-50 antialiased min-h-screen;
   }
+}
 
+@media print {
+  /* Forzamos blanco para el papel y ocultamos la web */
+  body { background: white !important; color: black !important; }
+  body * { visibility: hidden; }
+  
+  .hoja-a4-rr, .hoja-a4-rr * { visibility: visible; }
+  
   .hoja-a4-rr {
     position: absolute;
     left: 0;
     top: 0;
     width: 210mm;
     margin: 0;
-    padding: 15mm;
+    padding: 20mm;
     background: white !important;
-    color: black !important;
   }
-
   .no-print { display: none !important; }
 }
