@@ -21,31 +21,37 @@
   }
 }
 
-/* Reglas de Impresión - Fuera de capas para máxima prioridad */
+/* REGLAS DE IMPRESIÓN - FUERA DE LAS CAPAS */
 @media print {
-  /* Oculta todo el fondo oscuro y la interfaz de la app */
-  body { background: white !important; }
-  body * { visibility: hidden; }
+  /* Oculta absolutamente todo el body */
+  body * {
+    visibility: hidden;
+  }
 
-  /* Solo muestra el reporte y sus hijos */
-  .reporte-final, .reporte-final * {
+  /* Muestra solo el reporte y todo lo que esté adentro */
+  .reporte-final-a4, .reporte-final-a4 * {
     visibility: visible;
   }
 
-  .reporte-final {
+  /* Ajusta el reporte a la hoja A4 */
+  .reporte-final-a4 {
     position: absolute;
     left: 0;
     top: 0;
-    width: 210mm; /* Ancho A4 */
-    min-height: 297mm;
+    width: 210mm;
     margin: 0;
     padding: 15mm;
     background: white !important;
-    color: #0f172a !important;
+    color: black !important;
   }
 
-  /* Forzar que los colores de fondo (como barritas de progreso) se impriman */
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  /* Asegura que se impriman los colores de las barritas */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
-  .no-print { display: none !important; }
+  .no-print {
+    display: none !important;
+  }
 }
