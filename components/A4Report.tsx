@@ -2,8 +2,8 @@ import React from 'react';
 
 export const A4Report = ({ employee, criteria, analysis }: any) => {
   return (
-    <div className="reporte-final bg-white text-slate-900 font-sans shadow-none">
-      {/* HEADER */}
+    <div className="reporte-final-a4 bg-white text-slate-900 p-10 font-sans shadow-none">
+      {/* HEADER CON LOGO */}
       <div className="flex justify-between items-center border-b-2 border-orange-500 pb-6 mb-8">
         <div className="w-40">
           <svg viewBox="0 0 445.41 237.71" xmlns="http://www.w3.org/2000/svg">
@@ -12,32 +12,24 @@ export const A4Report = ({ employee, criteria, analysis }: any) => {
           </svg>
         </div>
         <div className="text-right">
-          <h1 className="text-xl font-black uppercase text-slate-900 tracking-tighter">Reporte Técnico ISO 9001</h1>
-          <p className="text-orange-600 text-[10px] font-bold tracking-widest uppercase">RR Etiquetas Uruguay</p>
+          <h1 className="text-xl font-black uppercase text-slate-800 tracking-tighter">Informe ISO 9001:2015</h1>
+          <p className="text-orange-600 text-[10px] font-bold tracking-widest uppercase">RR Etiquetas</p>
         </div>
       </div>
 
-      {/* INFO EMPLEADO */}
-      <div className="grid grid-cols-2 gap-4 mb-6 bg-slate-50 p-6 rounded-xl border border-slate-100">
-        <div>
-          <p className="text-slate-400 font-bold uppercase text-[9px]">Colaborador</p>
-          <p className="font-black text-lg text-slate-800">{employee.name}</p>
-          <p className="text-slate-500 text-xs">{employee.jobtitle || employee.jobTitle}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-slate-400 font-bold uppercase text-[9px]">Resultado Auditoría</p>
-          <p className="font-black text-orange-600 uppercase">{analysis.isoComplianceLevel || 'Pendiente'}</p>
-        </div>
+      <div className="mb-6 bg-slate-50 p-6 rounded-xl border border-slate-100">
+        <p className="text-slate-400 font-bold uppercase text-[9px]">Colaborador</p>
+        <p className="font-black text-lg text-slate-800">{employee.name}</p>
+        <p className="text-slate-500 text-xs">{employee.jobtitle || employee.jobTitle}</p>
       </div>
 
       <div className="mb-8">
-        <h3 className="text-[10px] font-black uppercase text-slate-400 mb-2">Resumen de Desempeño</h3>
+        <h3 className="text-[10px] font-black uppercase text-slate-400 mb-2">Resumen</h3>
         <p className="text-sm leading-relaxed text-slate-700 italic border-l-2 border-slate-200 pl-4">{analysis.summary}</p>
       </div>
 
-      {/* PUNTAJES */}
       <div className="mb-8">
-        <h3 className="text-[10px] font-black uppercase text-slate-400 mb-4">Criterios Evaluados</h3>
+        <h3 className="text-[10px] font-black uppercase text-slate-400 mb-4">Puntuaciones</h3>
         <div className="space-y-3">
           {criteria.map((c: any) => (
             <div key={c.id} className="flex items-center gap-4">
@@ -53,23 +45,22 @@ export const A4Report = ({ employee, criteria, analysis }: any) => {
 
       <div className="grid grid-cols-2 gap-8">
         <div>
-          <h3 className="text-[10px] font-black uppercase text-slate-400 mb-3">Fortalezas</h3>
+          <h3 className="text-[10px] font-black uppercase text-slate-400 mb-2">Fortalezas</h3>
           <ul className="text-xs space-y-1 text-slate-700">
             {analysis.strengths.map((s: string, i: number) => <li key={i}>• {s}</li>)}
           </ul>
         </div>
         <div>
-          <h3 className="text-[10px] font-black uppercase text-slate-400 mb-3">Plan de Capacitación</h3>
+          <h3 className="text-[10px] font-black uppercase text-slate-400 mb-2">Capacitación</h3>
           <ul className="text-xs space-y-1 text-slate-700 font-bold">
             {analysis.trainingPlan.map((t: string, i: number) => <li key={i}>• {t}</li>)}
           </ul>
         </div>
       </div>
-
-      <div className="mt-20 pt-8 border-t border-slate-100 flex justify-between items-center no-print">
-        <p className="text-[9px] text-slate-300 uppercase tracking-widest font-bold">RR Etiquetas - 2026</p>
-        <button onClick={() => window.print()} className="bg-orange-600 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase hover:bg-orange-500 transition-colors">
-          Imprimir Reporte A4
+      
+      <div className="mt-20 no-print">
+        <button onClick={() => window.print()} className="bg-orange-600 text-white px-8 py-3 rounded-full text-xs font-black uppercase shadow-lg">
+          Imprimir Reporte
         </button>
       </div>
     </div>
