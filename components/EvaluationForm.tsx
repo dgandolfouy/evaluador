@@ -5,7 +5,8 @@ import { analyzeEvaluation } from '../services/geminiService'; // IMPORT EN SING
 
 export const EvaluationForm = ({ employee, initialCriteria, onComplete, onCancel }: any) => {
   const [loading, setLoading] = useState(false);
-  const [criteria, setCriteria] = useState(initialCriteria || [
+  const [criteria, setCriteria] = useState(
+    initialCriteria?.map((c: any) => ({ ...c, score: 5, feedback: '' })) || [
     { id: '1', name: 'Productividad y Eficiencia', score: 5, feedback: '' },
     { id: '2', name: 'Calidad y Cumplimiento ISO', score: 5, feedback: '' },
     { id: '3', name: 'Seguridad e Higiene RR', score: 5, feedback: '' },

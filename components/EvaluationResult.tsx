@@ -4,7 +4,7 @@ import { Printer, ArrowLeft, Share2, Download, Loader2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
-export const EvaluationResult = ({ employee, criteria, analysis, onBack }: any) => {
+export const EvaluationResult = ({ employee, criteria, analysis, evaluatorName, onBack }: any) => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
@@ -17,11 +17,15 @@ export const EvaluationResult = ({ employee, criteria, analysis, onBack }: any) 
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // Use html-to-image with specific settings to avoid CORS issues with fonts
+      // We need to capture the element with white background explicitly
       const dataUrl = await toPng(reportRef.current, {
-        quality: 0.95,
+        quality: 1.0,
         backgroundColor: '#ffffff',
         filter: (node) => !node.classList?.contains('no-print'),
-        fontEmbedCSS: '' // Disable font embedding to avoid CORS issues
+        skipAutoScale: true,
+        cacheBust: true,
+        pixelRatio: 2, // Higher resolution
+        fontEmbedCSS: '', // Prevent CORS errors with Google Fonts
       });
 
       const pdf = new jsPDF({
@@ -34,27 +38,12 @@ export const EvaluationResult = ({ employee, criteria, analysis, onBack }: any) 
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
-      let heightLeft = pdfHeight;
-      let position = 0;
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
-      }
-
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Evaluacion_ISO9001_${employee.name.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error("Error generating PDF:", error);
       // Fallback to native print if PDF generation fails
-      if (confirm("Hubo un problema generando el archivo PDF automáticamente. ¿Desea abrir el diálogo de impresión para guardarlo como PDF?")) {
-        window.print();
-      }
+      window.print();
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -116,13 +105,6 @@ ${analysis.trainingPlan.map((t: string) => `- ${t}`).join('\n')}
         </div>
         
         <div className="flex gap-4">
-          <button 
-            onClick={handleShare}
-            className="border border-slate-700 text-slate-300 px-6 py-4 rounded-2xl font-bold text-xs uppercase hover:bg-slate-800 hover:text-white transition-all flex items-center gap-2"
-          >
-            <Share2 size={18} /> Compartir
-          </button>
-
           <button 
             onClick={handleDownloadPDF} 
             disabled={isGeneratingPdf}
@@ -192,7 +174,13 @@ ${analysis.trainingPlan.map((t: string) => `- ${t}`).join('\n')}
       <div className="no-print border-t border-slate-800 pt-12 mt-12">
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-8 text-center">Vista Previa del Documento Oficial</p>
         <div ref={reportRef} className="bg-white p-4 sm:p-8 rounded-xl overflow-hidden">
-          <A4Report employee={employee} criteria={criteria} analysis={analysis} />
+          <A4Report 
+            employee={employee} 
+            criteria={criteria} 
+            analysis={analysis} 
+            date={new Date().toISOString()} // Or pass the actual evaluation date if available
+            evaluatorName={evaluatorName || "Supervisor"} 
+          />
         </div>
       </div>
     </div>

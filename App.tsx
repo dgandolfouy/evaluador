@@ -4,7 +4,7 @@ import { Dashboard } from './components/Dashboard';
 import { Organigram } from './components/Organigram';
 import { EvaluationForm } from './components/EvaluationForm';
 import { EvaluationResult } from './components/EvaluationResult';
-import { AdminPanel } from './components/AdminPanel';
+import AdminPanel from './components/AdminPanel';
 import { StatsView } from './components/StatsView';
 import { Login } from './components/Login';
 import { Logo } from './components/Logo';
@@ -93,11 +93,26 @@ const App: React.FC = () => {
       }
 
       const updatedHistory = [newEval, ...history];
+      
+      // Calculate new average score for the employee
+      const employeeEvals = updatedHistory.filter(e => e.employeeId === state.selectedEmployeeId);
+      const totalScore = employeeEvals.reduce((acc, curr) => {
+        const evalScore = curr.criteria.reduce((sum: number, c: any) => sum + c.score, 0) / curr.criteria.length;
+        return acc + evalScore;
+      }, 0);
+      const newAverage = Number((totalScore / employeeEvals.length).toFixed(1));
+
+      // Update employee in state
+      const updatedEmployees = employees.map(emp => 
+        emp.id === state.selectedEmployeeId ? { ...emp, averageScore: newAverage } : emp
+      );
+      setEmployees(updatedEmployees);
+
       const response = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          employees,
+          employees: updatedEmployees,
           departments,
           criteria: globalCriteria,
           evaluations: updatedHistory
@@ -247,6 +262,7 @@ const App: React.FC = () => {
             employee={employees.find(e => e.id === state.selectedEmployeeId)!} 
             criteria={state.currentCriteria} 
             analysis={state.analysis} 
+            evaluatorName={currentUser?.name || 'Supervisor'}
             onBack={() => setState({ ...state, step: 'dashboard' })} 
           />
         )}

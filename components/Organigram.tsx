@@ -33,6 +33,19 @@ const OrgNode: React.FC<OrgNodeProps> = ({ employee, allEmployees, evaluations, 
 
   const isEvaluated = (evaluations || []).some(ev => ev.employeeId === employee.id);
 
+  // Calculate score dynamically ONLY from evaluations to ensure consistency
+  const calculatedScore = React.useMemo(() => {
+    const empEvals = (evaluations || []).filter(ev => ev.employeeId === employee.id);
+    if (empEvals.length === 0) return 0;
+    
+    const total = empEvals.reduce((acc, curr) => {
+      const evalScore = curr.criteria.reduce((sum: number, c: any) => sum + c.score, 0) / curr.criteria.length;
+      return acc + evalScore;
+    }, 0);
+    
+    return Number((total / empEvals.length).toFixed(1));
+  }, [evaluations, employee.id]);
+
   return (
     <div
       className={`flex flex-col gap-1 transition-all ${level === 0 ? '' : 'ml-4 sm:ml-8'}`}
@@ -53,7 +66,17 @@ const OrgNode: React.FC<OrgNodeProps> = ({ employee, allEmployees, evaluations, 
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className={`font-semibold text-sm sm:text-base break-words ${level === 0 ? 'text-white' : 'text-slate-200'}`}>{employee.name}</h3>
+          <h3 
+            className={`font-semibold text-sm sm:text-base break-words ${level === 0 ? 'text-white' : 'text-slate-200'} ${isEvaluated ? 'hover:underline cursor-pointer' : ''}`}
+            onClick={(e) => {
+              if (isEvaluated) {
+                e.stopPropagation();
+                onSelect(employee);
+              }
+            }}
+          >
+            {employee.name}
+          </h3>
           <div className={`text-[10px] sm:text-xs break-words ${level === 0 ? 'text-orange-200' : 'text-slate-500'}`}>
             {(level === 0 || isPrimarySupervised || (relevantAdditionalRoles.length === 0 && !supervisorId)) && (
               <div>{employee.jobTitle} • {employee.department}</div>
@@ -64,15 +87,10 @@ const OrgNode: React.FC<OrgNodeProps> = ({ employee, allEmployees, evaluations, 
           </div>
         </div>
 
-        {employee.averageScore !== undefined && (
-          <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 bg-amber-500/10 text-amber-400 rounded-lg text-[10px] sm:text-xs font-bold border border-amber-500/20">
-            <Star size={10} fill="currentColor" />
-            {(employee.averageScore || 0).toFixed(1)}
-          </div>
-        )}
+        {/* Score display removed as requested */}
 
         <div className="flex-shrink-0 flex items-center gap-1 sm:gap-2">
-          {isMyDirectSubordinate && (
+          {isMyDirectSubordinate && !isEvaluated && (
             <button
               onClick={(e) => {
                 e.stopPropagation();

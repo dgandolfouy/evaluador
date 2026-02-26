@@ -22,7 +22,7 @@ export const analyzeEvaluation = async (employee: Employee, criteria: Criterion[
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-flash-latest",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

@@ -201,6 +201,58 @@ app.post('/api/data', async (req, res) => {
   }
 });
 
+app.delete('/api/data', async (req, res) => {
+  const { type, id, name } = req.query;
+  const dbPool = getPool();
+  if (!dbPool) {
+    return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
+  }
+  
+  const client = await dbPool.connect();
+  try {
+    await ensureTablesExist();
+    
+    if (type === 'employee' && id) {
+      await client.query('DELETE FROM employees WHERE id = $1', [id]);
+      // Also delete associated evaluations? Maybe not strictly required but good practice
+      await client.query('DELETE FROM evaluations WHERE employeeId = $1', [id]);
+    } else if (type === 'department' && name) {
+      await client.query('DELETE FROM departments WHERE name = $1', [name]);
+      // Update employees in this department to have no department or a default?
+      // For now, let's just delete the department.
+    } else {
+      return res.status(400).json({ error: 'Invalid delete request' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting data:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/evaluations/:id', async (req, res) => {
+  const { id } = req.params;
+  const dbPool = getPool();
+  if (!dbPool) {
+    return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
+  }
+
+  const client = await dbPool.connect();
+  try {
+    await ensureTablesExist();
+    await client.query('DELETE FROM evaluations WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting evaluation:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // Vite middleware for development
 if (process.env.NODE_ENV !== 'production') {
   const vite = await createViteServer({

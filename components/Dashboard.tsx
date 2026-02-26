@@ -71,9 +71,21 @@ export const Dashboard = ({ evaluations, employees, currentUser, onNew, onQuickS
                 </div>
                 <div className="flex gap-2">
                   {hasEv ? (
-                    <button onClick={() => onView(latestEv)} className="p-3 bg-slate-800 text-orange-500 rounded-2xl hover:bg-slate-700 transition-all"><BarChart2 size={18} /></button>
+                    <button 
+                      onClick={() => onView(latestEv)} 
+                      className="p-3 bg-slate-800 text-orange-500 rounded-2xl hover:bg-slate-700 transition-all"
+                      title="Ver Evaluación"
+                    >
+                      <BarChart2 size={18} />
+                    </button>
                   ) : (
-                    <button onClick={() => onQuickStart(emp.id)} className="p-3 bg-orange-600 text-white rounded-2xl hover:bg-orange-500 hover:scale-105 transition-all shadow-lg shadow-orange-600/20"><Plus size={18} /></button>
+                    <button 
+                      onClick={() => onQuickStart(emp.id)} 
+                      className="p-3 bg-orange-600 text-white rounded-2xl hover:bg-orange-500 hover:scale-105 transition-all shadow-lg shadow-orange-600/20"
+                      title="Nueva Evaluación"
+                    >
+                      <Plus size={18} />
+                    </button>
                   )}
                 </div>
               </div>
