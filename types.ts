@@ -43,7 +43,7 @@ export interface SavedEvaluation {
 }
 
 export interface EvaluationState {
-  step: 'dashboard' | 'organigram' | 'evaluating' | 'report' | 'admin' | 'stats';
+  step: 'dashboard' | 'organigram' | 'evaluating' | 'report' | 'admin' | 'stats' | 'form';
   selectedEmployeeId: string | null;
   currentCriteria: Criterion[];
   analysis: AnalysisResult | null;

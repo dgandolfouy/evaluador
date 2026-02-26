@@ -1,3 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+}
+
 @media print {
   /* Forzamos fondo blanco y texto negro en el body */
   body {
@@ -6,8 +18,7 @@
   }
 
   /* Ocultamos absolutamente todo excepto el reporte */
-  #root > *:not(.reporte-container), 
-  header, nav, button, .no-print {
+  #root > :not(.reporte-container), header, nav, button, .no-print {
     display: none !important;
   }
 
@@ -21,7 +32,7 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 210mm; 
+    width: 210mm;
     background: white !important;
     padding: 15mm;
   }

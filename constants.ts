@@ -1,14 +1,16 @@
 import { Employee, Criterion, Department } from './types';
 
 export const DEPARTMENTS: Department[] = [
-  'Gerencia',
   'Administración y RRHH',
+  'Arte',
   'Calidad',
-  'Producción',
-  'Comercialización',
+  'Comercial',
   'Expedición',
-  'Stock',
-  'Arte'
+  'Gerencia',
+  'Producción',
+  'Redes Sociales',
+  'Sistemas',
+  'Stock'
 ];
 
 export const INITIAL_EMPLOYEES: Employee[] = [
@@ -16,56 +18,70 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     id: '1',
     name: 'Gonzalo Viñas',
     department: 'Gerencia',
-    jobTitle: 'Director General',
+    jobTitle: 'Director Gerente General',
   },
   {
     id: '2',
     name: 'Daniel Gandolfo',
     department: 'Arte',
     jobTitle: 'Gerente de Arte',
-    additionalRoles: [
-      { jobTitle: 'Ayudante de Producción', department: 'Producción', reportsTo: '3' },
-      { jobTitle: 'Ayudante de Calidad', department: 'Calidad', reportsTo: '5' }
-    ],
     reportsTo: '1',
   },
   {
     id: '3',
-    name: 'Pablo Candia',
-    department: 'Calidad',
-    jobTitle: 'Jefe de Calidad',
+    name: 'Cristina García',
+    department: 'Administración y RRHH',
+    jobTitle: 'Gerente de Administración y RRHH',
     reportsTo: '1',
   },
   {
     id: '4',
-    name: 'Pablo Tato',
-    department: 'Comercialización',
-    jobTitle: 'Gerente Comercial',
+    name: 'Pablo Candia',
+    department: 'Producción',
+    jobTitle: 'Gerente de Producción',
     reportsTo: '1',
   },
   {
     id: '5',
-    name: 'Cristina Garcia',
-    department: 'Administración y RRHH',
-    jobTitle: 'Jefe de Administración',
-    additionalRoles: [
-      { jobTitle: 'Gerente de Sección B', department: 'Producción' }
-    ],
+    name: 'Maximiliano Chucarro',
+    department: 'Comercial',
+    jobTitle: 'Gerente Comercial',
     reportsTo: '1',
   },
   {
     id: '6',
-    name: 'Operario 1',
-    department: 'Producción',
-    jobTitle: 'Operador de Flexografía',
+    name: 'Cristian Recoba',
+    department: 'Arte',
+    jobTitle: 'Encargado de Arte',
     reportsTo: '2',
   },
   {
     id: '7',
-    name: 'Asistente Comercial 1',
-    department: 'Comercialización',
-    jobTitle: 'Asistente de Ventas',
+    name: 'Gastón Hannay',
+    department: 'Arte',
+    jobTitle: 'Diseñador Gráfico',
+    reportsTo: '2',
+  },
+  {
+    id: '8',
+    name: 'Facundo Césaro',
+    department: 'Producción',
+    jobTitle: 'Rebobinador',
     reportsTo: '4',
+  },
+  {
+    id: '9',
+    name: 'Sebastián Castro',
+    department: 'Producción',
+    jobTitle: 'Impresor Flexo',
+    reportsTo: '4',
+  },
+  {
+    id: '10',
+    name: 'Aram Handalian',
+    department: 'Redes Sociales',
+    jobTitle: 'Asesor en Redes Sociales',
+    reportsTo: '1',
   }
 ];
 

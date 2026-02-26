@@ -18,31 +18,27 @@ const OrgNode: React.FC<OrgNodeProps> = ({ employee, allEmployees, evaluations, 
   const employeeId = employee.id;
 
   const subordinates = allEmployees.filter(e => {
-    const parentId = e.reportsto || e.reportsTo;
-    return parentId === employeeId ||
-      (e.additionalroles || e.additionalRoles || []).some(r => (r.reportsto || r.reportsTo) === employeeId);
+    const parentId = e.reportsTo;
+    return parentId === employeeId || (e.additionalRoles || []).some(r => r.reportsTo === employeeId);
   });
 
   const hasSubordinates = subordinates.length > 0;
 
   // Filter roles relevant to this supervisor
-  const managerId = employee.reportsto || employee.reportsTo;
+  const managerId = employee.reportsTo;
   const isPrimarySupervised = managerId === supervisorId;
-  const relevantAdditionalRoles = (employee.additionalroles || employee.additionalRoles || [])
-    .filter(r => (r.reportsto || r.reportsTo) === supervisorId);
+  const relevantAdditionalRoles = (employee.additionalRoles || []).filter(r => r.reportsTo === supervisorId);
 
-  const isMyDirectSubordinate = managerId === currentUser?.id ||
-    (employee.additionalroles || employee.additionalRoles || [])
-      .some(r => (r.reportsto || r.reportsTo) === currentUser?.id);
+  const isMyDirectSubordinate = managerId === currentUser?.id || (employee.additionalRoles || []).some(r => r.reportsTo === currentUser?.id);
 
-  const isEvaluated = (evaluations || []).some(ev => (ev.employeeid || ev.employeeId) === employee.id);
+  const isEvaluated = (evaluations || []).some(ev => ev.employeeId === employee.id);
 
   return (
-    <div className="flex flex-col text-slate-200">
-      <div
-        className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl transition-all cursor-pointer group ${level === 0 ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/20' : 'hover:bg-slate-800 border border-transparent hover:border-slate-700'
-          }`}
-        style={{ marginLeft: `${level * (window.innerWidth < 640 ? 12 : 24)}px` }}
+    <div
+      className={`flex flex-col gap-1 transition-all ${level === 0 ? '' : 'ml-4 sm:ml-8'}`}
+    >
+      <div 
+        className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl transition-all cursor-pointer group ${level === 0 ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/20' : 'hover:bg-slate-800 border border-transparent hover:border-slate-700'}`}
         onClick={() => {
           if (hasSubordinates) setIsOpen(!isOpen);
         }}
@@ -60,18 +56,18 @@ const OrgNode: React.FC<OrgNodeProps> = ({ employee, allEmployees, evaluations, 
           <h3 className={`font-semibold text-sm sm:text-base break-words ${level === 0 ? 'text-white' : 'text-slate-200'}`}>{employee.name}</h3>
           <div className={`text-[10px] sm:text-xs break-words ${level === 0 ? 'text-orange-200' : 'text-slate-500'}`}>
             {(level === 0 || isPrimarySupervised || (relevantAdditionalRoles.length === 0 && !supervisorId)) && (
-              <div>{employee.jobtitle || employee.jobTitle} • {employee.department}</div>
+              <div>{employee.jobTitle} • {employee.department}</div>
             )}
             {relevantAdditionalRoles.map((role, idx) => (
-              <div key={idx} className="opacity-80 italic">{role.jobtitle || role.jobTitle} • {role.department}</div>
+              <div key={idx} className="opacity-80 italic">{role.jobTitle} • {role.department}</div>
             ))}
           </div>
         </div>
 
-        {employee.averagescore !== undefined && (
+        {employee.averageScore !== undefined && (
           <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 bg-amber-500/10 text-amber-400 rounded-lg text-[10px] sm:text-xs font-bold border border-amber-500/20">
             <Star size={10} fill="currentColor" />
-            {(employee.averagescore || 0).toFixed(1)}
+            {(employee.averageScore || 0).toFixed(1)}
           </div>
         )}
 
@@ -103,7 +99,7 @@ const OrgNode: React.FC<OrgNodeProps> = ({ employee, allEmployees, evaluations, 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
+            className="overflow-hidden border-l-2 border-slate-800 ml-4 sm:ml-5 pl-2 sm:pl-4"
           >
             <div className="mt-1 space-y-1">
               {subordinates.map(sub => (
@@ -135,13 +131,13 @@ interface OrganigramProps {
 
 export const Organigram: React.FC<OrganigramProps> = ({ employees, evaluations, currentUser, onSelectEmployee }) => {
   const rootEmployees = employees.filter(e => {
-    const managerId = e.reportsto || e.reportsTo;
-    const additionalRoot = (e.additionalroles || e.additionalRoles || []).some(r => !(r.reportsto || r.reportsTo));
+    const managerId = e.reportsTo;
+    const additionalRoot = (e.additionalRoles || []).some(r => !r.reportsTo);
     return !managerId || additionalRoot;
   });
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto p-4 text-slate-200">
+    <div className="w-full max-w-4xl mx-auto">
       <div className="mb-8 text-center">
         <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Estructura Organizacional</h2>
         <p className="text-slate-400 text-sm italic">Explore la jerarquía. El botón (+) solo aparecerá para sus subordinados directos.</p>

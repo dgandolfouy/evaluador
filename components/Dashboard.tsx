@@ -4,19 +4,18 @@ import { Calendar, CheckCircle, Clock, Plus, BarChart2 } from 'lucide-react';
 
 export const Dashboard = ({ evaluations, employees, currentUser, onNew, onQuickStart, onView }: any) => {
   const mySubordinates = employees.filter((e: Employee) => {
-    const managerId = e.reportsto || e.reportsTo;
-    return managerId === currentUser?.id ||
-      (e.additionalroles || e.additionalRoles || []).some(r => (r.reportsto || r.reportsTo) === currentUser?.id);
+    const managerId = e.reportsTo;
+    return managerId === currentUser?.id || (e.additionalRoles || []).some(r => r.reportsTo === currentUser?.id);
   });
 
   const totalSub = mySubordinates.length;
-  const completed = mySubordinates.filter((e: Employee) =>
-    evaluations.some((ev: SavedEvaluation) => (ev.employeeid || ev.employeeId) === e.id)
+  const completed = mySubordinates.filter((e: Employee) => 
+    evaluations.some((ev: SavedEvaluation) => ev.employeeId === e.id)
   ).length;
   const progress = totalSub > 0 ? (completed / totalSub) * 100 : 0;
 
   return (
-    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 sm:space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
         <div className="bg-slate-900/50 p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-xl">
           <div className="flex items-center gap-4 mb-4">
@@ -56,14 +55,14 @@ export const Dashboard = ({ evaluations, employees, currentUser, onNew, onQuickS
         <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Mis Colaboradores Directos</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {mySubordinates.map((emp: Employee) => {
-            const hasEv = evaluations.some((ev: SavedEvaluation) => (ev.employeeid || ev.employeeId) === emp.id);
-            const latestEv = [...evaluations].reverse().find((ev: SavedEvaluation) => (ev.employeeid || ev.employeeId) === emp.id);
+            const hasEv = evaluations.some((ev: SavedEvaluation) => ev.employeeId === emp.id);
+            const latestEv = [...evaluations].reverse().find((ev: SavedEvaluation) => ev.employeeId === emp.id);
 
             return (
               <div key={emp.id} className="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 flex justify-between items-center group hover:border-orange-500/30 transition-all">
                 <div>
                   <div className="font-black text-white text-sm uppercase tracking-tighter mb-1">{emp.name}</div>
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">{emp.jobtitle || emp.jobTitle}</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase">{emp.jobTitle}</div>
                   {hasEv && (
                     <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-full border border-emerald-500/20 text-[8px] font-black uppercase">
                       <CheckCircle size={8} /> Evaluado
