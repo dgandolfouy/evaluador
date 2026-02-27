@@ -90,6 +90,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         category: c.category || ''
       }));
 
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       return res.status(200).json({ 
         employees: parsedEmployees, 
         departments: departments.rows.map(d => d.name), 
