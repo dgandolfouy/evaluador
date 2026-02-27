@@ -3,7 +3,7 @@ import { Logo } from './Logo';
 
 export const A4Report = ({ employee, criteria, analysis, date, evaluatorName }: any) => {
   return (
-    <div id="printable-report" className="hoja-a4-rr bg-white text-black p-10 max-w-[210mm] mx-auto shadow-2xl rounded-sm">
+    <div id="printable-report" className="hoja-a4-rr bg-white text-black p-10 w-[210mm] min-w-[210mm] mx-auto shadow-2xl rounded-sm">
       <div className="flex justify-between items-center border-b-2 border-orange-500 pb-4 mb-6">
         <Logo className="w-48 text-black" variant="pdf" />
         <div className="text-right">

@@ -220,6 +220,8 @@ app.delete('/api/data', async (req, res) => {
       await client.query('DELETE FROM departments WHERE name = $1', [name]);
       // Update employees in this department to have no department or a default?
       // For now, let's just delete the department.
+    } else if (type === 'evaluation' && id) {
+      await client.query('DELETE FROM evaluations WHERE id = $1', [id]);
     } else {
       return res.status(400).json({ error: 'Invalid delete request' });
     }

@@ -173,14 +173,16 @@ ${analysis.trainingPlan.map((t: string) => `- ${t}`).join('\n')}
 
       <div className="no-print border-t border-slate-800 pt-12 mt-12">
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-8 text-center">Vista Previa del Documento Oficial</p>
-        <div ref={reportRef} className="bg-white p-4 sm:p-8 rounded-xl overflow-hidden">
-          <A4Report 
-            employee={employee} 
-            criteria={criteria} 
-            analysis={analysis} 
-            date={new Date().toISOString()} // Or pass the actual evaluation date if available
-            evaluatorName={evaluatorName || "Supervisor"} 
-          />
+        <div className="bg-slate-950 p-4 sm:p-8 rounded-3xl border border-slate-800 overflow-x-auto">
+          <div ref={reportRef} className="bg-white shadow-2xl mx-auto min-w-[800px] w-full max-w-[210mm]">
+            <A4Report 
+              employee={employee} 
+              criteria={criteria} 
+              analysis={analysis} 
+              date={new Date().toISOString()} // Or pass the actual evaluation date if available
+              evaluatorName={evaluatorName || "Supervisor"} 
+            />
+          </div>
         </div>
       </div>
     </div>

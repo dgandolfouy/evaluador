@@ -148,6 +148,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await client.query('DELETE FROM evaluations WHERE employeeId = $1', [id]);
       } else if (type === 'department' && name) {
         await client.query('DELETE FROM departments WHERE name = $1', [name]);
+      } else if (type === 'evaluation' && id) {
+        await client.query('DELETE FROM evaluations WHERE id = $1', [id]);
       } else {
         return res.status(400).json({ error: 'Invalid delete request' });
       }
