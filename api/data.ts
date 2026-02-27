@@ -165,7 +165,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).end('Method Not Allowed');
 
   } catch (error: any) {
-    await client.query('ROLLBACK');
+    // Only rollback if we are in a transaction (POST method uses BEGIN)
+    if (req.method === 'POST') {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rbError) {
+        console.error("Rollback error:", rbError);
+      }
+    }
     console.error("API Error:", error);
     return res.status(500).json({ error: 'Internal Server Error', details: error.message });
   } finally {
