@@ -1,5 +1,5 @@
 import { Employee, Criterion, SavedEvaluation, Department } from '../../types';
-import { INITIAL_EMPLOYEES, DEFAULT_CRITERIA, DEPARTMENTS } from '../../constants';
+import { DEFAULT_CRITERIA, DEPARTMENTS } from '../../constants';
 
 const API_URL = '/api/data';
 const STORAGE_KEY = 'app_data_v1';
@@ -12,7 +12,7 @@ export interface AppData {
 }
 
 const getInitialData = (): AppData => ({
-  employees: INITIAL_EMPLOYEES,
+  employees: [],
   departments: DEPARTMENTS,
   criteria: DEFAULT_CRITERIA as Criterion[], // Cast to match type if needed
   evaluations: []
@@ -22,12 +22,13 @@ export const dataService = {
   async loadData(): Promise<AppData> {
     try {
       // Try fetching from API first (for local server environment)
-      const response = await fetch(API_URL);
+      const url = `${API_URL}?_=${new Date().getTime()}`;
+      const response = await fetch(url);
       
       if (response.ok) {
         const data = await response.json();
         return {
-          employees: data.employees || INITIAL_EMPLOYEES,
+          employees: data.employees || [],
           departments: data.departments || DEPARTMENTS,
           criteria: data.criteria || DEFAULT_CRITERIA,
           evaluations: data.evaluations || []
