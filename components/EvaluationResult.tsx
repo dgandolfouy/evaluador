@@ -155,7 +155,7 @@ ${analysis.trainingPlan.map((t: string) => `- ${t}`).join('\n')}
         <div className="space-y-8">
           <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 text-center">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Cumplimiento ISO</p>
-            <p className="text-4xl font-black text-white uppercase tracking-tighter">{analysis?.isoComplianceLevel}</p>
+            <p className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tighter break-words">{analysis?.isoComplianceLevel}</p>
           </div>
           
           <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800">

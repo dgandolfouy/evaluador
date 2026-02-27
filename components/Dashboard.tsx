@@ -16,7 +16,7 @@ export const Dashboard = ({ evaluations, employees, currentUser, onNew, onQuickS
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div className="bg-slate-900/50 p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-xl">
           <div className="flex items-center gap-4 mb-4">
             <div className="p-3 bg-orange-600/20 text-orange-500 rounded-2xl"><BarChart2 /></div>
@@ -34,20 +34,6 @@ export const Dashboard = ({ evaluations, employees, currentUser, onNew, onQuickS
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Completados</h3>
           </div>
           <div className="text-3xl sm:text-4xl font-black text-white">{completed} <span className="text-sm text-slate-500">/ {totalSub}</span></div>
-        </div>
-
-        <div className="bg-slate-900/50 p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-xl">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-emerald-600/20 text-emerald-500 rounded-2xl"><Plus /></div>
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Acción Rápida</h3>
-          </div>
-          <button
-            onClick={() => onQuickStart(mySubordinates[0]?.id)}
-            disabled={totalSub === 0}
-            className="w-full bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
-          >
-            Nueva Evaluación
-          </button>
         </div>
       </div>
 

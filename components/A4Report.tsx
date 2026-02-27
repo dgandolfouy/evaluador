@@ -25,7 +25,7 @@ export const A4Report = ({ employee, criteria, analysis, date, evaluatorName }: 
         </div>
         <div className="text-right">
           <p className="text-slate-400 font-bold uppercase text-[9px]">Evaluado por</p>
-          <p className="font-bold text-sm uppercase text-slate-800">{evaluatorName || 'Administrador'}</p>
+          <p className="font-bold text-sm text-slate-800 capitalize">{evaluatorName?.toLowerCase() || 'Administrador'}</p>
         </div>
       </div>
       <div className="mb-8">

@@ -11,6 +11,7 @@ import { Logo } from './components/Logo';
 import { Toaster, toast } from 'react-hot-toast';
 import { LayoutDashboard, Users, BarChart3, LogOut, Loader2, Settings, AlertCircle } from 'lucide-react';
 import { INITIAL_EMPLOYEES } from './constants';
+import { dataService } from './src/services/dataService';
 
 const LEADERS = ["DANIEL GANDOLFO", "CRISTINA GARCIA", "PABLO CANDIA", "GONZALO VIÑAS"];
 
@@ -40,33 +41,18 @@ const App: React.FC = () => {
 
   const [dbError, setDbError] = useState<string | null>(null);
 
-  // FETCH DATA (API)
+  // FETCH DATA
   const fetchData = async () => {
     try {
-      const response = await fetch('/api/data');
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (errorData.error === 'DATABASE_NOT_CONFIGURED') {
-          setDbError(errorData.message);
-          // Fallback to initial data but don't try to save
-          setEmployees(INITIAL_EMPLOYEES);
-          return;
-        }
-        throw new Error('Failed to fetch');
-      }
-      const data = await response.json();
+      const data = await dataService.loadData();
+      setEmployees(data.employees);
+      setHistory(data.evaluations);
+      setDepartments(data.departments);
+      setGlobalCriteria(data.criteria);
       setDbError(null);
-
-      if (data.employees && data.employees.length > 0) setEmployees(data.employees);
-      else setEmployees(INITIAL_EMPLOYEES);
-
-      if (data.evaluations) setHistory(data.evaluations);
-      if (data.departments) setDepartments(data.departments);
-      if (data.criteria && data.criteria.length > 0) setGlobalCriteria(data.criteria);
-      
     } catch (e) {
-      console.error("Error fetching:", e);
-      setEmployees(INITIAL_EMPLOYEES);
+      console.error("Error fetching data:", e);
+      setDbError("Error cargando datos. Usando modo local.");
     }
   };
 
@@ -88,10 +74,6 @@ const App: React.FC = () => {
         analysis: analysis
       };
 
-      if (dbError) {
-        throw new Error("La base de datos no está configurada. Los cambios no se guardarán.");
-      }
-
       const updatedHistory = [newEval, ...history];
       
       // Calculate new average score for the employee
@@ -108,18 +90,12 @@ const App: React.FC = () => {
       );
       setEmployees(updatedEmployees);
 
-      const response = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employees: updatedEmployees,
-          departments,
-          criteria: globalCriteria,
-          evaluations: updatedHistory
-        })
+      await dataService.saveData({
+        employees: updatedEmployees,
+        departments,
+        criteria: globalCriteria,
+        evaluations: updatedHistory
       });
-
-      if (!response.ok) throw new Error('Error al guardar en la base de datos');
 
       setHistory(updatedHistory);
       setState({ ...state, step: 'report', currentCriteria: criteria, analysis: analysis });
@@ -128,7 +104,7 @@ const App: React.FC = () => {
     toast.promise(promise, {
       loading: 'Guardando evaluación...',
       success: '¡Evaluación guardada!',
-      error: (err) => err.message,
+      error: (err) => 'Error al guardar',
     }).finally(() => setIsSaving(false));
   };
 
@@ -136,32 +112,20 @@ const App: React.FC = () => {
     if (isSaving) return;
 
     const promise = (async () => {
-      if (dbError) {
-        throw new Error("La base de datos no está configurada. No se pueden guardar cambios.");
-      }
       setIsSaving(true);
-      const response = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employees: newEmployees,
-          departments: newDepartments,
-          criteria: newCriteria,
-          evaluations: newEvaluations
-        })
+      await dataService.saveData({
+        employees: newEmployees,
+        departments: newDepartments,
+        criteria: newCriteria,
+        evaluations: newEvaluations
       });
-
-      if (!response.ok) {
-        throw new Error('Error al guardar cambios en la base de datos');
-      }
-
       await fetchData();
     })();
 
     toast.promise(promise, {
       loading: 'Guardando cambios...',
       success: '¡Datos guardados con éxito!',
-      error: (err) => err.message || 'Ocurrió un error.',
+      error: (err) => 'Error al guardar',
     }).finally(() => setIsSaving(false));
   };
 
