@@ -6,23 +6,27 @@ import jsPDF from 'jspdf';
 
 export const EvaluationResult = ({ employee, criteria, analysis, evaluatorName, onBack }: any) => {
   const reportRef = useRef<HTMLDivElement>(null);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handleDownloadPDF = async () => {
-    if (!reportRef.current) return;
+    if (!pdfContainerRef.current) return;
     
     setIsGeneratingPdf(true);
     try {
       // Small delay to ensure rendering
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Use html-to-image with specific settings to avoid CORS issues with fonts
-      // We need to capture the element with white background explicitly
-      const dataUrl = await toPng(reportRef.current, {
+      // Use html-to-image with specific settings
+      const dataUrl = await toPng(pdfContainerRef.current, {
         quality: 1.0,
         backgroundColor: '#ffffff',
-        filter: (node) => !node.classList?.contains('no-print'),
-        skipAutoScale: true,
+        width: 794, // 210mm @ 96 DPI
+        height: 1123, // 297mm @ 96 DPI
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+        },
         cacheBust: true,
         pixelRatio: 2, // Higher resolution
         fontEmbedCSS: '', // Prevent CORS errors with Google Fonts
@@ -34,11 +38,7 @@ export const EvaluationResult = ({ employee, criteria, analysis, evaluatorName, 
         format: 'a4'
       });
 
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(dataUrl, 'PNG', 0, 0, 210, 297);
       pdf.save(`Evaluacion_ISO9001_${employee.name.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -173,16 +173,33 @@ ${analysis.trainingPlan.map((t: string) => `- ${t}`).join('\n')}
 
       <div className="no-print border-t border-slate-800 pt-12 mt-12">
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-8 text-center">Vista Previa del Documento Oficial</p>
-        <div className="bg-slate-950 p-4 sm:p-8 rounded-3xl border border-slate-800 overflow-x-auto">
-          <div ref={reportRef} className="bg-white shadow-2xl mx-auto min-w-[800px] w-full max-w-[210mm]">
+        <div className="bg-slate-950 p-4 sm:p-8 rounded-3xl border border-slate-800 overflow-x-auto flex justify-center">
+          <div className="shadow-2xl rounded-sm overflow-hidden">
+            <div ref={reportRef} className="bg-white w-[210mm] min-w-[210mm]">
+              <A4Report 
+                employee={employee} 
+                criteria={criteria} 
+                analysis={analysis} 
+                date={new Date().toISOString()} 
+                evaluatorName={evaluatorName || "Supervisor"} 
+                className=""
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hidden container for PDF generation - Absolute positioned to ensure clean capture */}
+      <div style={{ position: 'fixed', top: 0, left: 0, zIndex: -50, opacity: 0, pointerEvents: 'none' }}>
+        <div ref={pdfContainerRef} className="bg-white w-[210mm] min-h-[297mm]">
             <A4Report 
               employee={employee} 
               criteria={criteria} 
               analysis={analysis} 
-              date={new Date().toISOString()} // Or pass the actual evaluation date if available
+              date={new Date().toISOString()} 
               evaluatorName={evaluatorName || "Supervisor"} 
+              className=""
             />
-          </div>
         </div>
       </div>
     </div>
