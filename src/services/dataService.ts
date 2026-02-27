@@ -22,8 +22,7 @@ export const dataService = {
   async loadData(): Promise<AppData> {
     try {
       // Try fetching from API first (for local server environment)
-      const url = `${API_URL}?_=${new Date().getTime()}`;
-      const response = await fetch(url);
+      const response = await fetch(API_URL);
       
       if (response.ok) {
         const data = await response.json();
