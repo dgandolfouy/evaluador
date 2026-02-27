@@ -51,7 +51,14 @@ async function ensureTablesExist(client: any) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const client = await pool.connect();
+  let client;
+  
+  try {
+    client = await pool.connect();
+  } catch (dbError: any) {
+    console.error("Database connection error:", dbError);
+    return res.status(503).json({ error: 'Database connection failed', details: dbError.message });
+  }
 
   try {
     if (req.method === 'GET') {
@@ -176,6 +183,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error("API Error:", error);
     return res.status(500).json({ error: 'Internal Server Error', details: error.message });
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 }
