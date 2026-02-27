@@ -153,7 +153,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
                       onClick={() => {
                         if (deletingId) return;
                         setDeletingId(emp.id);
-                        const promise = fetch(`/api/data?type=employee&id=${emp.id}`, { method: 'DELETE' });
+                        const promise = fetch(`/api/data?type=employee&id=${encodeURIComponent(emp.id)}`, { method: 'DELETE' });
                         
                         toast.promise(promise, {
                           loading: 'Borrando empleado...',
@@ -299,7 +299,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ employees, departments, 
                       onClick={() => {
                         if (deletingId) return;
                         setDeletingId(ev.id);
-                        const promise = fetch(`/api/data?type=evaluation&id=${ev.id}`, { method: 'DELETE' });
+                        const promise = fetch(`/api/data?type=evaluation&id=${encodeURIComponent(ev.id)}`, { method: 'DELETE' });
                         
                         toast.promise(promise, {
                           loading: 'Borrando...',
